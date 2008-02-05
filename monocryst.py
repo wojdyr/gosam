@@ -78,7 +78,7 @@ def make_si_lattice():
 def get_command_line():
     "return command used to call the program (from sys.argv)"
     args = [(i if " " not in i else '"'+i+'"') for i in sys.argv]
-    title = " ".join(args)
+    return " ".join(args)
 
 class OrthorhombicPbcModel(graingen.FreshModel):
     def __init__(self, lattice, dimensions, title):

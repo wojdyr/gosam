@@ -184,6 +184,7 @@ def export_for_atomeye(configuration, f, aux=None):
     if not isinstance(pbc, numpy.ndarray):
         pbc = numpy.array(pbc)
     print >>f, "Number of particles = %i" % len(configuration.atoms) 
+    print >>f, "# file written by gosam (SVN $Revision$)"
     print >>f, "#", configuration.title
     print >>f, "A = 1.0 Angstrom (basic length-scale)"
     for i in range(3):
