@@ -264,7 +264,7 @@ def find_csl_matrix(sigma, R):
 
     Xp = numpy.round(inv(Tp), 12)
     print "0-lattice:\n%s" % Xp
-    n = round(sigma / det(Xp), 9)
+    n = round(sigma / det(Xp), 7)
     # n is an integral number of 0-lattice units per CSL unit
     print "det(X')=",det(Xp), "  n=", n
     csl = make_csl_from_0_lattice(Xp, n)

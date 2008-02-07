@@ -14,7 +14,7 @@ Usage:
  - plane - it can be given as:
            * miller indices of the boundary plane in bottom monocrystal lattice
            * "twist" - keyword that means that plane is perpendicular to axis
-           * miller indices prefixed with letter s (e.g. s001) meaning
+           * TODO: miller indices prefixed with letter s (e.g. s001) meaning
              symmetry place (the boundary will be calculated)
              
  - instead of sigma (one number) you can give m,n (e.g. 23,4)
@@ -32,15 +32,10 @@ Usage:
 Examples:
     bicrystal.py 001 twist 5 20 20 80 twist_s5.cfg 
     bicrystal.py 100 013 5 20 20 80 tilt_s5.cfg 
-    bicrystal.py 100 s001 5 20 20 80 tilt_s5.cfg 
+    TODO: bicrystal.py 100 s001 5 20 20 80 tilt_s5.cfg 
 
 caution: the program was tested only for a few cases (may not work in others)
-------
-Examples:
-    bicrystal.py [0,0,1] 5 20 20 80  # -> twist sigma=5
-    bicrystal.py [1,0,0] 5 sym 20 "4*sqrt(10)" "252/sqrt(10)" 
-                                                 # -> symmetric tilt sigma=5
-    bicrystal.py [1,0,0] 5 sym nm 12 12 30  
+
 """
 
 
