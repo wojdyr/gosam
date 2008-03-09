@@ -94,10 +94,11 @@ def _get_S():
     Sp = identity(3) # for primitive cubic
     Sb = array([[0.5, -0.5, 0],
                 [0.5,  0.5, 0],
-                [0.5,  0.5, 1]]) # body-centered
+                [0.5,  0.5, 1]]) # body-centered cubic
     Sf = array([[0.5, 0.5, 0],
                 [0,   0.5, 0.5],
-                [0.5, 0,   0.5]]) # face-centered
+                [0.5, 0,   0.5]]) # face-centered cubic
+    # Sf doesn't work?
     return Sp
 
 
@@ -119,9 +120,16 @@ def transpose_3x3(f):
 def beautify_matrix(T):
     # We don't want to change the lattice. 
     # We use only elementary column operations that don't change det 
+    def looks_better(a, b):
+        x = numpy.abs(a)
+        y = numpy.abs(b)
+        #return x.sum() < y.sum()
+        #return x.sum() < y.sum() or (x.sum() == y.sum() and x.max() < y.max())
+        return x.max() < y.max()
+
     def try_add(a, b):
         changed = False
-        while numpy.abs(a + b).sum() < numpy.abs(a).sum():
+        while looks_better(a+b, a):
             a += b
             changed = True
         return changed
@@ -135,6 +143,8 @@ def beautify_matrix(T):
             for j in range(3):
                 if i != j and not changed:
                     changed = try_add_sub(T[i], T[j]) 
+                    if changed:
+                        break
         if not changed:
             break
 
@@ -144,7 +154,7 @@ def beautify_matrix(T):
 @transpose_3x3
 def make_parallel_to_axis(T, col, axis):
     """\
-    T: integer matrix 3x3, i.e. 3 vectors
+    T: matrix 3x3, i.e. 3 vectors, 2*T is integer matrix
     axis: vector (3)
     return value:
        matrix T is transformed using operations:
@@ -155,6 +165,7 @@ def make_parallel_to_axis(T, col, axis):
                                 and has first vector == axis
        the transformation is _not_ rotation
     """
+    T *= 2 # make it integer, will be /=2 at the end
     axis = array(axis)
     c = solve(T.transpose(), axis) # c . T == axis
     if not is_integer(c):
@@ -178,6 +189,8 @@ def make_parallel_to_axis(T, col, axis):
 
     if c[col] < 0: # sign of det was changed, change it again 
         T[1] *= -1
+
+    T /= 2.
 
     return T
 
@@ -234,11 +247,12 @@ def make_csl_from_0_lattice(T, n):
 
 def find_csl_matrix(sigma, R):
     """\
-    Find matrix that determines the coincidence site lattice for primitive 
-    cubic structures.
+    Find matrix that determines the coincidence site lattice 
+    for cubic structures.
     Parameters:
         sigma: CSL sigma
         R: rotation matrix
+        centering: "f" for f.c.c., "b" for b.c.c. and None for p.c.
     Return value:
         matrix, which column vectors are the unit vectors of the CSL.
     Based on H. Grimmer et al., Acta Cryst. (1974) A30, 197
@@ -269,7 +283,7 @@ def find_csl_matrix(sigma, R):
     print "det(X')=",det(Xp), "  n=", n
     csl = make_csl_from_0_lattice(Xp, n)
     assert is_integer(csl)
-    csl = numpy.round(csl).astype(int)
+    csl = csl.round().astype(int)
     return beautify_matrix(csl)
     
 
@@ -298,6 +312,10 @@ def find_orthorhombic_pbc(M):
                          [[  ] [  ] [  ]]
      we simply try to guess b,c,d,e,f,g 
     """
+    M *= 2 # make it integer, will be /=2 at the end
+    assert is_integer(M)
+    M = M.round().astype(int)
+
     n = 6
     pbc = None
     max_sq = 0
@@ -338,8 +356,32 @@ def find_orthorhombic_pbc(M):
     if pbc is None:
         print "No orthorhombic PBC found."
         sys.exit()
-    return pbc
+    return pbc / 2.
 
+
+def find_type(type, Cp):
+    for i,j,k in (0,0,1), (0,1,0), (1,0,0), (0,1,1), (1,0,1), (1,1,0), (1,1,1):
+        if ((i * Cp[0] + j * Cp[1] + k * Cp[2]) % 2 == type).all():
+            return [i,j,k]
+    raise ValueError("find_type: %s not found" % type)
+
+# see the paper by Grimmer, 1.3.1-1.3.3
+@transpose_3x3
+def pc2fcc(Cp):
+    t1 = find_type([0,1,1], Cp)
+    t2 = find_type([1,0,1], Cp)
+    pos1 = t1.index(1)
+    pos2 = t2.index(1)
+    if pos2 == pos1:
+        try:
+            pos2 = t2.index(1, pos1+1)
+        except ValueError:
+            pos1 = t1.index(1, pos1+1)
+    Z = identity(3)
+    Z[pos1] = array(t1) / 2.
+    Z[pos2] = array(t2) / 2.
+    print_matrix("Z:", Z.transpose())
+    return dot(Z, Cp)
 
 def print_list(hkl, limit=1000):
     data = []
@@ -369,6 +411,11 @@ def print_details(hkl, sigma):
     print "R * sigma =\n%s" % (R * sigma)
     C = find_csl_matrix(sigma, R)
     print "CSL primitive cell (det=%s):\n%s" % (det(C), C)
+    # optional, for FCC
+    C = pc2fcc(C)
+    C = beautify_matrix(C)
+    print_matrix("CSL cell for fcc:", C)
+
     Cp = make_parallel_to_axis(C, col=2, axis=hkl)
     if (Cp != C).any():
         print "after making z || %s:\n%s" % (hkl, Cp)

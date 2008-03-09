@@ -162,6 +162,9 @@ class Model:
             for j in v:
                 dist = self.atoms[k].get_dist(self.atoms[j], pbc_half=pbc_half)
                 dd.append(dist)
+        if not dd:
+            print "no atoms were too close"
+            return
         print "   deleted atoms distances: from %s to %s" % (min(dd), max(dd))
 
 
@@ -225,6 +228,8 @@ class Model:
             mdfile.export_for_dlpoly(self.atoms, f, self.title)
         elif format == "atomeye":
             mdfile.export_for_atomeye(self, f)
+        elif format == "poscar":
+            mdfile.export_as_poscar(self, f)
         else:
             print >>f, "Unknown format requested: %s" % format
 

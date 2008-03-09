@@ -9,6 +9,7 @@ Supported file types (some of them are supported partially):
  AtomEye (search WWW for details)
  LAMMPS (http://lammps.sandia.gov)
  Pielaszek (simple file format used sometimes here, in Unipress)
+ POSCAR - VASP input file with atom positions - POSCAR (direct format)
 """
 
 import sys
@@ -18,7 +19,7 @@ import numpy
 from numpy import linalg
 
 from mdprim import AtomVF
-from model import Model
+import model 
 import pse
 
 
@@ -79,7 +80,7 @@ def import_pielaszek(ifile):
         s = i.split()
         pos = (float(s[0]), float(s[1]), float(s[2]))
         atoms.append(AtomVF(s[3], len(atoms), pos, None, None))
-    return Model(atoms, pbc=[])
+    return model.Model(atoms, pbc=[])
 
 
 def import_xmol(ifile):
@@ -90,7 +91,7 @@ def import_xmol(ifile):
         s = i.split()
         pos = (float(s[1]), float(s[2]), float(s[3]))
         atoms.append(AtomVF(s[0], len(atoms), pos, None, None))
-    return Model(atoms, pbc=[], title=title)
+    return model.Model(atoms, pbc=[], title=title)
 
 
 def import_dlpoly_config(ifile):
@@ -129,7 +130,7 @@ def _get_dlpoly_configuration(ifile, title, levcfg, imcon):
             if levcfg > 1:
                 force = get_numbers(ifile.readline())
         atoms.append(AtomVF(name, nr, pos, velocity, force))
-    return Model(atoms, pbc, title), next_line
+    return model.Model(atoms, pbc, title), next_line
 
 
 def import_dlpoly_history(ifile):
@@ -245,7 +246,7 @@ def import_atomeye(ifile):
                 # if velocities are also reduced:
                 vel = numpy.dot(vel, H) 
             atoms.append(AtomVF(spec, len(atoms), pos, vel, None))
-    return Model(atoms, pbc=pbc, title="from cfg")
+    return model.Model(atoms, pbc=pbc, title="from cfg")
 
 
 def import_lammps_data(ifile):
@@ -296,7 +297,50 @@ def import_lammps_data(ifile):
         pos = float(s[2]), float(s[3]), float(s[4])
         atoms.append(AtomVF(name, len(atoms), pos, vel=None, force=None))
 
-    return Model(atoms, pbc=pbc, title="from lammps data")
+    return model.Model(atoms, pbc=pbc, title="from lammps data")
+
+
+def export_as_poscar(configuration, f):
+    "exporting coordinates as VASP POSCAR file"
+    # line 1: a comment (should be name of the system)
+    print >>f, configuration.title 
+    # line 2: scaling factor
+    print >>f, "1.0"
+    # line 3, 4, 5: the unit cell of the system
+    for i in range(3):
+        print >>f, "%.15g %.15g %.15g" % tuple(configuration.pbc[i])
+
+    # make list of species
+    counts = {}
+    for i in configuration.atoms:
+        if i.name in counts:
+            counts[i.name] += 1
+        else:
+            counts[i.name] = 1
+    # reverse to have Si before C
+    species = sorted(counts.keys(), reverse=True)
+
+    # line 6: the number of atoms per atomic species
+    print "Species:",
+    for i in species:
+        print i,
+        print >>f, counts[i],
+    print >>f
+    print
+    # line 7: Cartesian/Direct switch
+    print >>f, "Direct"
+
+    # line 8, ...: atom coordinates
+    H_1 = linalg.inv(configuration.pbc) 
+    for sp in species:
+        for i in configuration.atoms:
+            if i.name == sp:
+                s = numpy.dot(i.pos, H_1) % 1.0
+                print >>f, "%.15g %.15g %.15g" % tuple(s)
+
+
+def import_poscar(ifile):
+    assert 0, "POSCAR import: not implemented yet"
 
 
 def get_type_from_filename(name):
@@ -314,6 +358,8 @@ def get_type_from_filename(name):
         return "dlpoly"
     elif "history" in lname:
         return "dlpoly_history"
+    elif "poscar" in lname:
+        return "poscar"
     else:
         print "Can't deduce filetype from filename:", name
         return None
@@ -334,6 +380,8 @@ def import_autodetected(filename):
         return import_atomeye(infile)
     elif input_type == "lammps":
         return import_lammps_data(infile)
+    elif input_type == "poscar":
+        return import_poscar(infile)
     else:
         assert 0
 

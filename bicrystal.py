@@ -209,6 +209,11 @@ def main():
     # C is CSL primitive cell
     C = csl.find_csl_matrix(opts.sigma, R)
     print_matrix("CSL primitive cell", C)
+    
+    # and now we determine CSL for fcc lattice
+    C = csl.pc2fcc(C)
+    C = csl.beautify_matrix(C)
+    print_matrix("CSL cell for fcc:", C)
 
     # CSL-lattice must be periodic is our system.
     # * PBC box must be orthonormal 
@@ -216,6 +221,7 @@ def main():
 
     Cp = csl.make_parallel_to_axis(C, col=2, axis=opts.plane)
     print_matrix("CSL cell with z || [%s %s %s]" % tuple(opts.plane), Cp)
+    Cp = C
 
     min_pbc = csl.find_orthorhombic_pbc(Cp)
     print_matrix("Minimal(?) orthorhombic PBC", min_pbc)
