@@ -204,7 +204,7 @@ def export_for_atomeye(configuration, f, aux=None):
             print >>f, pse.get_atom_mass(i.name) 
             print >>f, i.name
             previous_name = i.name
-        s = numpy.dot(i.pos, H_1)
+        s = numpy.dot(i.pos, H_1) % 1.0
         entries = [s[0], s[1], s[2]]
         for au in aux:
             entries += aux_fun[au](i)
@@ -390,6 +390,7 @@ def convert():
     "converts atomistic files" 
     parser = OptionParser("usage: %prog [--pbc=list] input_file output_file")
     parser.add_option("--pbc", help="PBC, eg. '[(60,0,0),(0,60,0),(0,0,60)]'")
+    parser.add_option("--filter", help="e.g. '15 < z < 30'")
     (options, args) = parser.parse_args()
     if len(args) != 2:
         parser.error("Two argumenets (input and output filenames) are required")
@@ -398,6 +399,13 @@ def convert():
     configuration = import_autodetected(input_filename)
     if options.pbc:
         configuration.pbc = eval(options.pbc)
+    if options.filter:
+        def f(atom):
+            name = atom.name
+            x, y, z = atom.pos
+            return eval(options.filter)
+        configuration.atoms = [i for i in configuration.atoms if f(i)]
+        print len(configuration.atoms), "atoms left."
     output_type = get_type_from_filename(output_filename)
     #TODO: check if file already exists
     ofile = file(output_filename, 'w')
