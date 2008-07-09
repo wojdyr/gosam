@@ -340,7 +340,46 @@ def export_as_poscar(configuration, f):
 
 
 def import_poscar(ifile):
-    assert 0, "POSCAR import: not implemented yet"
+    species = ["Si", "C"]
+
+    title = ifile.readline().strip()
+    scaling_factor = float(ifile.readline())
+    assert scaling_factor > 0, \
+           "POSCAR import: negative scaling factors are not supported"
+
+    pbc = []
+    for i in range(3):
+        line = ifile.readline()
+        h = [scaling_factor * float(i) for i in line.split()]
+        assert len(h) == 3
+        pbc.append(h)
+
+    line = ifile.readline()
+    atom_count = [int(i) for i in line.split()]
+    H = numpy.array(pbc, float)
+
+    selective_dynamics = False
+    cartesian = False
+    switch = ifile.readline()[0].lower()
+    if switch == 's':
+        selective_dynamics = True
+        switch = ifile.readline()[0].lower()
+    if switch in ('c', 'k'):
+        cartesian = True
+
+    assert not cartesian
+
+    atoms = []
+    for n, count in enumerate(atom_count):
+        name = species[n]
+        for i in xrange(count):
+            s = ifile.readline().split()
+            raw_pos = (float(s[0]), float(s[1]), float(s[2]))
+            pos = raw_pos
+            pos = numpy.dot(raw_pos, H)
+            atoms.append(AtomVF(name, len(atoms), pos, None, None))
+
+    return model.Model(atoms, pbc=pbc, title=title)
 
 
 def get_type_from_filename(name):
@@ -358,7 +397,7 @@ def get_type_from_filename(name):
         return "dlpoly"
     elif "history" in lname:
         return "dlpoly_history"
-    elif "poscar" in lname:
+    elif "poscar" in lname or "contcar" in lname:
         return "poscar"
     else:
         print "Can't deduce filetype from filename:", name
