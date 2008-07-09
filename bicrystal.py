@@ -17,7 +17,9 @@ Usage:
            * TODO: miller indices prefixed with letter s (e.g. s001) meaning
              symmetry place (the boundary will be calculated)
              
- - instead of sigma (one number) you can give m,n (e.g. 23,4)
+ - instead of sigma (one number) you can give:
+   * m,n (e.g. 23,4)
+   * theta=value, i.e. value of angle in degrees (e.g. theta=90)
  - dim_x, dim_y and dim_z are in nm
  - options:
    * nofit - if this option is _not_ specified, PBC dimensions will be tuned 
@@ -113,7 +115,11 @@ class BicrystalOptions:
 
 
     def parse_sigma_and_find_theta(self, sigma_arg):
-        if "," not in sigma_arg:
+        if sigma_arg.startswith("theta="):
+            sigma = None
+            m, n = None, None
+            theta = radians(float(sigma_arg[6:]))
+        elif "," not in sigma_arg:
             sigma = int(sigma_arg)
             r = csl.find_theta(self.axis, sigma)
             if r is None:
@@ -124,7 +130,8 @@ class BicrystalOptions:
             m_, n_ = sigma_arg.split(",")
             m, n = int(m_), int(n_)
             sigma, theta = csl.cubic_csl(self.axis, m, n)
-        print "-------> sigma = %i" % sigma
+        if sigma is not None:
+            print "-------> sigma = %i" % sigma
         print "-------> theta = %.3f deg" % degrees(theta)
         self.sigma = sigma
         self.theta = theta
@@ -206,14 +213,17 @@ def main():
     # to lattice in the upper monocrystal 
     R = rodrigues(opts.axis, opts.theta)
 
-    # C is CSL primitive cell
-    C = csl.find_csl_matrix(opts.sigma, R)
-    print_matrix("CSL primitive cell", C)
-    
-    # and now we determine CSL for fcc lattice
-    C = csl.pc2fcc(C)
-    C = csl.beautify_matrix(C)
-    print_matrix("CSL cell for fcc:", C)
+    if opts.sigma:
+        # C is CSL primitive cell
+        C = csl.find_csl_matrix(opts.sigma, R)
+        print_matrix("CSL primitive cell", C)
+        
+        ## and now we determine CSL for fcc lattice
+        #C = csl.pc2fcc(C)
+        #C = csl.beautify_matrix(C)
+        #print_matrix("CSL cell for fcc:", C)
+    else:
+        C = identity(3)
 
     # CSL-lattice must be periodic is our system.
     # * PBC box must be orthonormal 
@@ -221,7 +231,6 @@ def main():
 
     Cp = csl.make_parallel_to_axis(C, col=2, axis=opts.plane)
     print_matrix("CSL cell with z || [%s %s %s]" % tuple(opts.plane), Cp)
-    Cp = C
 
     min_pbc = csl.find_orthorhombic_pbc(Cp)
     print_matrix("Minimal(?) orthorhombic PBC", min_pbc)
@@ -234,7 +243,8 @@ def main():
         rot[i] = pbct[i] / length
         min_dim.append(length)
     invrot = rot.transpose()
-    assert (numpy.abs(invrot - linalg.inv(rot)) < 1e-9).all()
+    assert (numpy.abs(invrot - linalg.inv(rot)) < 1e-9).all(), "%s != %s" % (
+                                                     invrot, linalg.inv(rot))
     a = opts.lattice.unit_cell.a
     opts.find_dim([i * a for i in min_dim])
 
