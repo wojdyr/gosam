@@ -21,6 +21,7 @@ from numpy import linalg
 from mdprim import AtomVF
 import model 
 import pse
+from utils import get_command_line
 
 
 def export_for_dlpoly(atoms, f, title, sort=True):
@@ -186,6 +187,7 @@ def export_for_atomeye(configuration, f, aux=None):
         pbc = numpy.array(pbc)
     print >>f, "Number of particles = %i" % len(configuration.atoms) 
     print >>f, "# file written by gosam (SVN $Revision$)"
+    print >>f, "# " + get_command_line()
     print >>f, "#", configuration.title
     print >>f, "A = 1.0 Angstrom (basic length-scale)"
     for i in range(3):
@@ -424,15 +426,25 @@ def import_autodetected(filename):
     else:
         assert 0
 
+def parse_translate_option(str):
+    tr_map = {}
+    for i in str.split(","):
+        if "->" not in i:
+            raise ValueError("wrong format of --translate option")
+        k, v = i.split("->")
+        tr_map[k.strip()] = v.strip()
+    return tr_map
+
 
 def convert():
     "converts atomistic files" 
     parser = OptionParser("usage: %prog [--pbc=list] input_file output_file")
     parser.add_option("--pbc", help="PBC, eg. '[(60,0,0),(0,60,0),(0,0,60)]'")
     parser.add_option("--filter", help="e.g. '15 < z < 30'")
+    parser.add_option("--translate", help="e.g. 'Si->C, C->Si'")
     (options, args) = parser.parse_args()
     if len(args) != 2:
-        parser.error("Two argumenets (input and output filenames) are required")
+        parser.error("Two arguments (input and output filenames) are required")
     input_filename = args[0]
     output_filename = args[1]
     configuration = import_autodetected(input_filename)
@@ -445,6 +457,12 @@ def convert():
             return eval(options.filter)
         configuration.atoms = [i for i in configuration.atoms if f(i)]
         print len(configuration.atoms), "atoms left."
+    if options.translate:
+        tr_map = parse_translate_option(options.translate)
+        for i in configuration.atoms:
+            if i.name in tr_map:
+                i.name = tr_map[i.name]
+
     output_type = get_type_from_filename(output_filename)
     #TODO: check if file already exists
     ofile = file(output_filename, 'w')
