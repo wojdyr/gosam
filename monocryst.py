@@ -11,6 +11,7 @@ import graingen
 import mdprim
 from csl import find_orthorhombic_pbc
 from rotmat import round_to_multiplicity
+from utils import get_command_line
 
 
 fcc_node_pos = [
@@ -78,11 +79,6 @@ def make_diamond_lattice(atom_name="C", a=3.567):
 
 def make_si_lattice():
     return make_diamond_lattice(atom_name="Si", a=5.43)
-
-def get_command_line():
-    "return command used to call the program (from sys.argv)"
-    args = [(i if " " not in i else '"'+i+'"') for i in sys.argv]
-    return " ".join(args)
 
 class OrthorhombicPbcModel(graingen.FreshModel):
     def __init__(self, lattice, dimensions, title):
