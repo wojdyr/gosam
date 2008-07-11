@@ -30,6 +30,8 @@ Usage:
              minimal interatomic distance in perfect crystal, one of the atoms
              is removed. You can specify "remove:0" to disable atom removing,
              or other value [in Angstroms] to change the default distance.
+   * vacuum:length - vacuum in z direction. Makes 2D slab with z dimension
+             increased by the length.
 
 Examples:
     bicrystal.py 001 twist 5 20 20 80 twist_s5.cfg 
@@ -101,7 +103,7 @@ class BicrystalOptions:
         self.m = None
         self.n = None
         self.req_dim = None
-        self.margin = 0.0 # margin for dim z
+        self.vacuum = None # margin for dim z
         self.dim = None
         self.fit = None
         self.mono1 = None
@@ -144,11 +146,13 @@ class BicrystalOptions:
         dim = [i * 10 for i in self.req_dim] # nm -> A
         if self.mono1 or self.mono2:
             dim[2] *= 2
-        dim[2] += 2 * self.margin # margin in dim z
         if self.fit:
-            #min_dim = self.find_min_dim()
-            dim = [round_to_multiplicity(min_dim[n], i) 
-                                                   for n, i in enumerate(dim)]
+            dim[0] = round_to_multiplicity(min_dim[0], dim[0]) 
+            dim[1] = round_to_multiplicity(min_dim[1], dim[1]) 
+            #if not self.vacuum:
+            dim[2] = round_to_multiplicity(min_dim[2], dim[2]) 
+        if self.vacuum:
+            dim[2] += self.vacuum # margin in dim z
         print "-------> dimensions [A]: ", dim[0], dim[1], dim[2]
         self.dim = dim
 
@@ -200,6 +204,8 @@ def parse_args():
             opts.mono2 = True
         elif i.startswith("remove:"):
             opts.remove_dist = float(i[7:])
+        elif i.startswith("vacuum:"):
+            opts.vacuum = float(i[7:]) * 10. #nm -> A
         else:
             raise ValueError("Unknown option: %s" % i)
     opts.output_filename = sys.argv[-1]
@@ -265,7 +271,7 @@ def main():
     else:
         config = Bicrystal(opts.lattice, opts.dim, rot_mat1, rot_mat2,
                            title=title)
-    config.generate_atoms(z_margin=opts.margin)
+    config.generate_atoms(z_margin=opts.vacuum)
     if not opts.mono1 and not opts.mono2 and opts.remove_dist > 0:
         config.remove_close_neighbours(opts.remove_dist)
     config.export_atoms(opts.output_filename)

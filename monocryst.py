@@ -42,7 +42,8 @@ def make_simple_cubic_lattice():
 
 def make_sic_lattice():
     print "---> Preparing Cubic SiC"
-    cell = graingen.CubicUnitCell(4.3581) # 4.3596 4.36
+    #cell = graingen.CubicUnitCell(4.3581) # 4.3596 4.36
+    cell = graingen.CubicUnitCell(4.32)  # value from Tersoff '89
 
     # nodes in unit cell (as fraction of unit cell parameters)
     node_pos = fcc_node_pos[:]
@@ -69,11 +70,14 @@ def make_sic_polytype_lattice(polytype="AB"):
     ]
     return make_lattice(cell, nodes, node_atoms)
 
-def make_si_lattice():
-    cell = graingen.CubicUnitCell(5.43)
+def make_diamond_lattice(atom_name="C", a=3.567):
+    cell = graingen.CubicUnitCell(a)
     node_pos = get_diamond_node_pos()
-    node_atoms = [ ("Si", 0.0, 0.0, 0.0) ]
+    node_atoms = [ (atom_name, 0.0, 0.0, 0.0) ]
     return make_lattice(cell, node_pos, node_atoms)
+
+def make_si_lattice():
+    return make_diamond_lattice(atom_name="Si", a=5.43)
 
 def get_command_line():
     "return command used to call the program (from sys.argv)"
@@ -90,14 +94,13 @@ class OrthorhombicPbcModel(graingen.FreshModel):
                           for y in self._min_max[1]
                           for z in self._min_max[2]]
 
-    def _do_gen_atoms(self, vmin, vmax, z_shift=0):
+    def _do_gen_atoms(self, vmin, vmax):
         self._min_max = zip(vmin, vmax)
         self.compute_scope()
         print self.get_scope_info()
         for node, abs_pos in self.get_all_nodes():
             for atom in node.atoms_in_node:
                 xyz = dot(abs_pos+atom.pos, self.unit_cell.M_1)
-                xyz[2] += z_shift
                 if (vmin < xyz).all() and (xyz <= vmax).all():
                     self.atoms.append(mdprim.Atom(atom.name, xyz))
 
@@ -124,19 +127,15 @@ class RotatedMonocrystal(OrthorhombicPbcModel):
         assert upper in (True, False, None)
         if upper is True:
             vmin[2] = eps
+            if z_margin:
+                vmax[2] -= z_margin / 2
         elif upper is False:
             vmax[2] = eps
-        z_shift = 0
-        if z_margin != 0:
-            if upper is True:
-                z_shift = z_margin / 2
-            elif upper is False:
-                z_shift = -z_margin / 2
-            vmin[2] += z_margin / 2
-            vmax[2] -= z_margin / 2
+            if z_margin:
+                vmin[2] += z_margin / 2
         if self.rot_mat is not None:
             self.unit_cell.rotate(self.rot_mat)
-        self._do_gen_atoms(vmin, vmax, z_shift=z_shift)
+        self._do_gen_atoms(vmin, vmax)
         if upper is None:
             print "Number of atoms in monocrystal: %i" % len(self.atoms) 
         return self.atoms
