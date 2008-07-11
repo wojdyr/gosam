@@ -483,8 +483,10 @@ def generate_grain(d):
     lattice = CrystalLattice(d["cell"], nodes)
     g = CuttedGrain(lattice, surfaces=d["surfaces"])
     g.generate_atoms()
+    g.print_stochiometry()
     if "vacancy_probability" in d:
         g.make_vacancies(d["vacancy_probability"])
+        g.print_stochiometry()
     if "modifier" in d:
         g.modify_atoms(d["modifier"])
     g.round_atom_coordinates()
@@ -496,8 +498,17 @@ def generate_grain(d):
         formats = d["output_formats"]
     else:
         formats = ["xmol"]
-    extensions = { "pielaszek": ".at", "xmol": ".xyz", "powdercell": ".cel",
-                   "dlpoly": ".dlpoly", }
+    extensions = { "pielaszek": ".at", 
+                   "xmol": ".xyz", 
+                   "powdercell": ".cel",
+                   "dlpoly": ".dlpoly", 
+                   "atomeye": ".cfg"
+                 }
+
+    # this format requires PBC. We put vacuum (>=1nm) between images
+    if "atomeye" in formats:
+        g.set_pbc_with_vacuum(width=10)
+
     for i in formats:
         g.export_atoms(file(d["output_file"]+extensions[i], 'w'),  format=i)
 

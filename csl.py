@@ -54,10 +54,9 @@ def cubic_csl(hkl, m, n):
         theta = pi
     return sigma, theta
 
-
-def find_theta(hkl, sigma, verbose=True):
+def get_theta_m_n_list(hkl, sigma, verbose=False):
     if sigma == 1:
-        return (0., 0, 0)
+        return [(0., 0, 0)]
     thetas = []
     for m in range(50):
         for n in range(1, 50):
@@ -68,6 +67,10 @@ def find_theta(hkl, sigma, verbose=True):
                 if verbose:
                     print "m=%i n=%i" % (m, n), "%.2f" % degrees(theta)
                 thetas.append((theta, m, n))
+    return thetas
+
+def find_theta(hkl, sigma, verbose=True):
+    thetas = get_theta_m_n_list(hkl, sigma, verbose=verbose)
     if thetas:
         return min(thetas, key= lambda x: x[0])
 
@@ -165,7 +168,10 @@ def make_parallel_to_axis(T, col, axis):
                                 and has first vector == axis
        the transformation is _not_ rotation
     """
-    T *= 2 # make it integer, will be /=2 at the end
+    double_T = False
+    if not is_integer(T):
+        T *= 2 # make it integer, will be /=2 at the end
+        double_T = True
     axis = array(axis)
     c = solve(T.transpose(), axis) # c . T == axis
     if not is_integer(c):
@@ -173,11 +179,11 @@ def make_parallel_to_axis(T, col, axis):
         c *= mult
     c = c.round().astype(int)
     #print "c", c
-    assert 1 in numpy.abs(c), c # it may not be true?
+    ##assert 1 in numpy.abs(c), c # it may not be true?
     sel_val = min([i for i in c if i != 0], key=abs)
     if abs(sel_val) != 1: # det must be changed
         print "Volume increased by %i" % abs(sel_val)
-        assert 0
+        assert 0, "abs(sel_val) = %s != 1" % abs(sel_val)
     idx = c.tolist().index(sel_val)
     #print idx, sel_val
     if idx != col:
@@ -190,7 +196,8 @@ def make_parallel_to_axis(T, col, axis):
     if c[col] < 0: # sign of det was changed, change it again 
         T[1] *= -1
 
-    T /= 2.
+    if double_T:
+        T /= 2.
 
     return T
 
@@ -312,11 +319,11 @@ def find_orthorhombic_pbc(M):
                          [[  ] [  ] [  ]]
      we simply try to guess b,c,d,e,f,g 
     """
-    M *= 2 # make it integer, will be /=2 at the end
+    ##M *= 2 # make it integer, will be /=2 at the end
     assert is_integer(M)
     M = M.round().astype(int)
 
-    n = 6
+    n = 9
     pbc = None
     max_sq = 0
     x, y, z = M
@@ -356,7 +363,15 @@ def find_orthorhombic_pbc(M):
     if pbc is None:
         print "No orthorhombic PBC found."
         sys.exit()
-    return pbc / 2.
+    ##pbc /= 2.
+
+    id = identity(3)
+    if (pbc[1] == id[0]).all() or (pbc[0] == -id[1]).all():
+        pbc[0], pbc[1] = pbc[1], -pbc[0]
+    elif (pbc[1] == -id[0]).all() or (pbc[0] == id[1]).all():
+        pbc[0], pbc[1] = pbc[1], -pbc[0]
+
+    return pbc
 
 
 def find_type(type, Cp):
@@ -380,18 +395,19 @@ def pc2fcc(Cp):
     Z = identity(3)
     Z[pos1] = array(t1) / 2.
     Z[pos2] = array(t2) / 2.
-    print_matrix("Z:", Z.transpose())
+    #print_matrix("Z (in pc2fcc)", Z.transpose())
     return dot(Z, Cp)
 
-def print_list(hkl, limit=1000):
+def print_list(hkl, max_angle=45., limit=1000):
     data = []
     for i in range(limit):
-        t = find_theta(hkl, i, verbose=False)
-        if t:
+        tt = get_theta_m_n_list(hkl, i, verbose=False)
+        for t in tt:
             theta, m, n = t
-            tup = (i, degrees(theta), m, n)
-            data.append(tup)
-            print "sigma=%3i    theta=%5.2f     m=%3i    n=%3i" % tup
+            if degrees(theta) <= max_angle:
+                tup = (i, degrees(theta), m, n)
+                data.append(tup)
+                print "sigma=%3i    theta=%5.2f     m=%3i    n=%3i" % tup
 
     data.sort(key= lambda x: x[1])
     print " ============= Sorted by theta ================ "
@@ -400,7 +416,7 @@ def print_list(hkl, limit=1000):
 
 
 def print_details(hkl, sigma):
-    t = find_theta(hkl, sigma, verbose=True)
+    t = find_theta(hkl, sigma)
     if t is None:
         print "Not found."
         return

@@ -102,28 +102,28 @@ class CellMethod:
             assert rotmat.is_diagonal(pbc)
             self.box_d = self.pbc = pbc.diagonal()
         else:
-            box_min, box_max = self.find_containing_box()
+            box_min, box_max = self._find_containing_box()
             self.box_d = box_max - box_min
             self.pbc = None
-        self.make_cells(r)
+        self._make_cells(r)
 
-    def find_containing_box(self):
+    def _find_containing_box(self):
         m = M = self.atoms[0].pos
         for i in self.atoms:
             m = numpy.minimum(i.pos, m) 
             M = numpy.maximum(i.pos, M)
         return m, M
 
-    def get_cell_coord(self, a):
+    def _get_cell_coord(self, a):
         return numpy.floor(a.pos * self.nc / self.box_d).astype(int) % self.nc
 
-    def make_cells(self, r):
+    def _make_cells(self, r):
         self.r = r
         self.nc = (self.box_d / (r + 1e-9)).astype(int)
         cell_count = self.nc[0] * self.nc[1] * self.nc[2]
         self.cells = [[] for i in range(cell_count)]
         for a_idx, a in enumerate(self.atoms):
-            nx, ny, nz = self.get_cell_coord(a)
+            nx, ny, nz = self._get_cell_coord(a)
             cell_idx = (nx * self.nc[1] + ny) * self.nc[2] + nz
             self.cells[cell_idx].append(a_idx)
         print "... system divided into %d x %d x %d cells ..." % tuple(self.nc)
@@ -139,7 +139,7 @@ class CellMethod:
             return 0,
 
     def _get_neighbour_cells(self, a):
-        nx, ny, nz = self.get_cell_coord(a)
+        nx, ny, nz = self._get_cell_coord(a)
         for tix in self._get_neigh_cells_in_dim(nx, self.nc[0]):
             for tiy in self._get_neigh_cells_in_dim(ny, self.nc[1]):
                 for tiz in self._get_neigh_cells_in_dim(nz, self.nc[2]):

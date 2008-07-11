@@ -267,5 +267,12 @@ class Model:
         for i in self.get_T_vs_centerdist(n_group):
             print >>ofile, i[0], i[1]
 
+    def set_pbc_with_vacuum(self, width):
+        pbc = numpy.zeros((3,3))
+        for i in range(3):
+            k = lambda atom: atom.pos[i]
+            pbc[i][i] = k(max(self.atoms, key=k)) - k(min(self.atoms, key=k)) \
+                        + width
+        self.pbc = pbc
 
 
