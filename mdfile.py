@@ -187,8 +187,10 @@ def export_for_atomeye(configuration, f, aux=None):
         pbc = numpy.array(pbc)
     print >>f, "Number of particles = %i" % len(configuration.atoms) 
     print >>f, "# file written by gosam (SVN $Revision$)"
-    print >>f, "# " + get_command_line()
-    print >>f, "#", configuration.title
+    cmd = get_command_line()
+    print >>f, "# " + cmd
+    if configuration.title and configuration.title != cmd:
+        print >>f, "#", configuration.title
     print >>f, "A = 1.0 Angstrom (basic length-scale)"
     for i in range(3):
         for j in range(3):
@@ -388,7 +390,7 @@ def get_type_from_filename(name):
     lname = name.lower()
     if name.endswith(".cfg"):
         return "atomeye"
-    if name.endswith(".lammps"):
+    if name.endswith(".lammps") or name.endswith(".lmps"):
         return "lammps"
     elif name.endswith(".xyz"):
         return "xmol"
