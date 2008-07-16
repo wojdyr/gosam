@@ -323,7 +323,7 @@ def find_orthorhombic_pbc(M):
     assert is_integer(M)
     M = M.round().astype(int)
 
-    n = 9
+    n = 15
     pbc = None
     max_sq = 0
     x, y, z = M
@@ -342,18 +342,23 @@ def find_orthorhombic_pbc(M):
     #print "my",My
 
     z2 = z
+    mxz = dot(Mx, z2)
+    myz = dot(My, z2)
     for b in plus_minus_gen(n):
         for d in zero_plus_minus_gen(n):
-            for e in zero_plus_minus_gen(n):
+            e_ = - (mxz[0] * b + mxz[1] * d) / float(mxz[2])
+            e = int(round(e_))
+            if abs(e - e_) < 1e-7: 
                 x2 = dot([b,d,e], Mx)
-                #print x2
-                if inner(z2, x2) != 0:
-                    continue
                 for c in plus_minus_gen(n):
+                    # instead of iteration, f can be calculated by solving
+                    #  z2 . y2 == 0, x2 . y2 == 0
                     for f in zero_plus_minus_gen(n):
-                        for g in zero_plus_minus_gen(n):
+                        g_ = - (myz[0] * f + myz[1] * c) / float(myz[2])
+                        g = int(round(g_))
+                        if abs(g - g_) < 1e-7:
                             y2 = dot([f,c,g], My)
-                            if inner(z2, y2) == 0 and inner(x2, y2) == 0:
+                            if inner(x2, y2) == 0:
                                 max_sq_ = max(dot(x2,x2), dot(y2,y2), 
                                               dot(z2,z2))
                                 #print "#", max_sq_,
