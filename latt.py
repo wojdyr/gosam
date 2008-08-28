@@ -160,6 +160,7 @@ class AtomInNode:
     def __str__(self):
         return "%s at %s in node"% (self.name, tuple(self.pos))
 
+
 class Node:
     """ Node in unit cell consists of a few (eg. 1 or 2) atoms, which should
         be kept together when cutting grains
@@ -172,6 +173,19 @@ class Node:
     def __str__(self):
         return "Node at %s in cell with: %s" % (tuple(self.pos_in_cell), 
                                ", ".join([str(i) for i in self.atoms_in_node]))
+        
+    def shift(self, v):
+        self.pos_in_cell = (self.pos_in_cell + array(v)) % 1.0
+
+    def is_normalized(self):
+        """Are positions of all the atoms in this node in the <0,1) range.
+           (i.e. checking self.pos_in_cell+atom.pos) 
+        """
+        for atom in self.atoms_in_node:
+            p = self.pos_in_cell + atom.pos
+            if (p >= 1).any() or (p < 0).any():
+                return False
+        return True
 
 
 class CrystalLattice:
@@ -198,6 +212,10 @@ class CrystalLattice:
             ain = i.atoms_in_node
             assert len(ain) == 2
             ain[0].name, ain[1].name = ain[1].name, ain[0].name
+            
+    def shift_nodes(self, v):
+        for i in self.nodes:
+            i.shift(v)
 
     def export_powdercell(self, f):
         cell = self.unit_cell

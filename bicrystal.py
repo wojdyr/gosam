@@ -32,6 +32,7 @@ Usage:
              or other value [in Angstroms] to change the default distance.
    * vacuum:length - vacuum in z direction. Makes 2D slab with z dimension
              increased by the length.
+   * shift:dx,dy,dz - shift nodes in unit cell. 
 
 Examples:
     bicrystal.py 001 twist 5 20 20 80 twist_s5.cfg 
@@ -66,10 +67,7 @@ class Bicrystal(OrthorhombicPbcModel):
         self.mono_u = RotatedMonocrystal(deepcopy(lattice), dim, rot_u)
         lattice2 = deepcopy(lattice)
 
-        # we want stechiometry in binary systems, and this helps:
-        # update: I'm not sure if the bicrystal will be still "CSL" after
-        # this trick, and if each boundary (not only total) will be 
-        # stechiometric
+        # if we want anti-phase GB in binary systems, we can swap two species.
         #if lattice2.count_species() == 2:
         #    lattice2.swap_node_atoms_names()
 
@@ -206,6 +204,12 @@ def parse_args():
             opts.remove_dist = float(i[7:])
         elif i.startswith("vacuum:"):
             opts.vacuum = float(i[7:]) * 10. #nm -> A
+        elif i.startswith("shift:"):
+            s = i[6:].split(",")
+            if len(s) != 3:
+                raise ValueError("Wrong format of shift parameter")
+            v = [float(i) for i in s]
+            opts.lattice.shift_nodes(v)
         else:
             raise ValueError("Unknown option: %s" % i)
     opts.output_filename = sys.argv[-1]

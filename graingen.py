@@ -295,10 +295,14 @@ class FreshModel(Model):
         self.vertices = self.get_vertices()
         #vertices transformed to orthonormal system
         unit_vertices = [dot(i, self.unit_cell.M) for i in self.vertices]
+
+        normalized = all(node.is_normalized() for node in self.lattice.nodes)
+        margin = 0 if normalized else 1
+
         scopes = []
         for i in zip(*unit_vertices):
-            m = floor(round(min(i), 9))
-            M = ceil(round(max(i), 9))
+            m = floor(round(min(i), 9)) - margin
+            M = ceil(round(max(i), 9)) + margin
             scopes.append((int(m), int(M)+1))
         self.a_scope, self.b_scope, self.c_scope = scopes
 

@@ -323,7 +323,7 @@ def find_orthorhombic_pbc(M):
     assert is_integer(M)
     M = M.round().astype(int)
 
-    n = 15
+    n = 10
     pbc = None
     max_sq = 0
     x, y, z = M
