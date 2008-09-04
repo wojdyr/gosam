@@ -137,30 +137,12 @@ class Model:
         self.log("removed %i under-coordinated atoms" % rem)
 
 
-    def _get_atoms_to_remove(self, cm):
-        """return map, which keys are indices of atoms for removing,
-           and values are neighbours that caused atom to be removed
-        """
-        to_be_deleted = {}
-        for n, i in enumerate(self.atoms):
-            for j in cm.pop_neighbours(n):
-                if j in to_be_deleted:
-                    if n not in to_be_deleted[j]:
-                        to_be_deleted[j].append(n)
-                elif n in to_be_deleted:
-                    if j not in to_be_deleted[n]:
-                        to_be_deleted[n].append(j)
-                else:
-                    to_be_deleted[j] = [n]
-        return to_be_deleted
-                
-
-    def _print_deleted_dist_stats(self, to_be_deleted):
+    def _print_deleted_dist_stats(self, atoms, to_be_deleted):
         dd = []
         pbc_half = array(self.pbc.diagonal()) / 2.
         for k,v in to_be_deleted.iteritems():
             for j in v:
-                dist = self.atoms[k].get_dist(self.atoms[j], pbc_half=pbc_half)
+                dist = atoms[k].get_dist(atoms[j], pbc_half=pbc_half)
                 dd.append(dist)
         if not dd:
             print "no atoms were too close"
@@ -185,24 +167,26 @@ class Model:
             b.pos += d / 2
 
 
-    def remove_close_neighbours(self, distance):
+    def remove_close_neighbours(self, distance, atoms=None):
         """Remove atoms in such a way that no two atoms are in distance
         smaller than `distance'
         """
+        if atoms is None:
+            atoms = self.atoms
         assert rotmat.is_diagonal(self.pbc)
-        print "Removing atoms in distance < %f ..." % distance
-        before = len(self.atoms)
-        cm = mdprim.CellMethod(self.atoms, distance, self.pbc)
-        to_be_deleted = self._get_atoms_to_remove(cm)
-        self._print_deleted_dist_stats(to_be_deleted)
+        before = len(atoms)
+        cm = mdprim.CellMethod(atoms, distance, self.pbc)
+        to_be_deleted = cm.get_atoms_to_remove()
+        self._print_deleted_dist_stats(atoms, to_be_deleted)
         #self._shift_before_removing(to_be_deleted)
         tbd_idx = to_be_deleted.keys()
         tbd_idx.sort(reverse=True)
         for i in tbd_idx:
-            del self.atoms[i]
-        rem = before - len(self.atoms)
+            del atoms[i]
+        rem = before - len(atoms)
         print "... %i atoms removed." % rem
-        self.print_stochiometry()
+        if atoms is self.atoms: # otherwise self.atoms stats are useless
+            self.print_stochiometry()
         self.log("removed %i too-close atoms" % rem)
 
 

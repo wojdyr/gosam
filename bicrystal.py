@@ -30,6 +30,8 @@ Usage:
              minimal interatomic distance in perfect crystal, one of the atoms
              is removed. You can specify "remove:0" to disable atom removing,
              or other value [in Angstroms] to change the default distance.
+   * remove2:dist - for binary systems only; like the option above, but only
+             pairs of atoms of the same species are checked.
    * vacuum:length - vacuum in z direction. Makes 2D slab with z dimension
              increased by the length.
    * shift:dx,dy,dz - shift nodes in unit cell. 
@@ -107,6 +109,7 @@ class BicrystalOptions:
         self.mono1 = None
         self.mono2 = None
         self.remove_dist = None
+        self.remove_dist2 = None
 
         self.lattice = make_sic_lattice()
         a = self.lattice.unit_cell.a
@@ -202,6 +205,8 @@ def parse_args():
             opts.mono2 = True
         elif i.startswith("remove:"):
             opts.remove_dist = float(i[7:])
+        elif i.startswith("remove2:"):
+            opts.remove_dist2 = float(i[8:])
         elif i.startswith("vacuum:"):
             opts.vacuum = float(i[7:]) * 10. #nm -> A
         elif i.startswith("shift:"):
@@ -277,7 +282,25 @@ def main():
                            title=title)
     config.generate_atoms(z_margin=opts.vacuum)
     if not opts.mono1 and not opts.mono2 and opts.remove_dist > 0:
+        print "Removing atoms in distance < %s ..." % opts.remove_dist
         config.remove_close_neighbours(opts.remove_dist)
+
+    if opts.remove_dist2:
+        a_atoms = []
+        b_atoms = []
+        a_name = config.atoms[0].name
+        for i in config.atoms:
+            if i.name == a_name:
+                a_atoms.append(i)
+            else:
+                b_atoms.append(i)
+        config.atoms = []
+        for aa in a_atoms, b_atoms:
+            print "Removing atoms where %s-%s distance is < %s ..." % (
+                                     aa[0].name, aa[0].name, opts.remove_dist2)
+            config.remove_close_neighbours(distance=opts.remove_dist2, atoms=aa)
+            config.atoms += aa
+
     config.export_atoms(opts.output_filename)
 
 

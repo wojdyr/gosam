@@ -180,4 +180,22 @@ class CellMethod:
         return counter
 
 
+    def get_atoms_to_remove(self):
+        """Return map, which keys are indices of atoms for removing,
+           and values are neighbours that caused atom to be removed.
+           Atoms are removed to leave not more than one atom in one cell.
+        """
+        to_be_deleted = {}
+        for n, i in enumerate(self.atoms):
+            for j in self.pop_neighbours(n):
+                if j in to_be_deleted:
+                    if n not in to_be_deleted[j]:
+                        to_be_deleted[j].append(n)
+                elif n in to_be_deleted:
+                    if j not in to_be_deleted[n]:
+                        to_be_deleted[n].append(j)
+                else:
+                    to_be_deleted[j] = [n]
+        return to_be_deleted
+
 
