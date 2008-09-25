@@ -10,6 +10,7 @@ Supported file types (some of them are supported partially):
  LAMMPS (http://lammps.sandia.gov)
  Pielaszek (simple file format used sometimes here, in Unipress)
  POSCAR - VASP input file with atom positions - POSCAR (direct format)
+ GULP - a part of GULP input file with cell vectors and atom coordinates
 """
 
 import sys
@@ -22,6 +23,7 @@ from mdprim import AtomVF
 import model 
 import pse
 from utils import get_command_line
+from rotmat import is_diagonal
 
 
 def export_for_dlpoly(atoms, f, title, sort=True):
@@ -171,6 +173,9 @@ def dlpoly_history_info(ifile):
             frame_counter += 1
     print "finished.", frame_counter, "frames were found."
 
+def get_stechiometry_string(configuration):
+    counts = configuration.count_species()
+    return "Stechiometry: " + " ".join("%s:%d" % i for i in counts.iteritems())
 
 def export_for_atomeye(configuration, f, aux=None):
     "AtomEye Extended CFG format"
@@ -191,6 +196,7 @@ def export_for_atomeye(configuration, f, aux=None):
     print >>f, "# " + cmd
     if configuration.title and configuration.title != cmd:
         print >>f, "#", configuration.title
+    print >>f, "#", get_stechiometry_string(configuration)
     print >>f, "A = 1.0 Angstrom (basic length-scale)"
     for i in range(3):
         for j in range(3):
@@ -253,6 +259,10 @@ def import_atomeye(ifile):
     return model.Model(atoms, pbc=pbc, title="from cfg")
 
 
+# This file format doesn't contain atom names, only numbers of atom types.
+# The names corresponding to the numbers are in separate lammps file.
+# Here we assume that names of the types follow the line "n atom types" 
+# as comments, e.g.: "2 atom types # C Si"
 def import_lammps_data(ifile):
     pbc = [[0,0,0], [0,0,0], [0,0,0]]
     while 1:
@@ -304,6 +314,26 @@ def import_lammps_data(ifile):
     return model.Model(atoms, pbc=pbc, title="from lammps data")
 
 
+def export_as_lammps(configuration, f):
+    "exporting coordinates as LAMMPS input data file"
+    assert is_diagonal(numpy.array(configuration.pbc))
+    print >>f, "# file written by gosam (SVN $Revision$)"
+    print >>f, "#", configuration.title 
+    print >>f
+    counts = configuration.count_species()
+    species = sorted(counts.keys())
+    print >>f, "\n%d\tatoms" % len(configuration.atoms) 
+    print >>f, "%d atom types # %s" % (len(species), " ".join(species))
+    spmap = dict((i, n+1) for n, i in enumerate(species))
+    print >>f, "0 %.6f xlo xhi" % configuration.pbc[0][0]
+    print >>f, "0 %.6f ylo yhi" % configuration.pbc[1][1]
+    print >>f, "0 %.6f zlo zhi" % configuration.pbc[2][2]
+    print >>f, "\nAtoms\n"
+    for n, i in enumerate(configuration.atoms):
+        print >>f, "%d\t%d\t%.7f\t%.7f\t%.7f" % (n+1, spmap[i.name], 
+                                           i.pos[0], i.pos[1], i.pos[2])
+
+
 def export_as_poscar(configuration, f):
     "exporting coordinates as VASP POSCAR file"
     # line 1: a comment (should be name of the system)
@@ -315,12 +345,7 @@ def export_as_poscar(configuration, f):
         print >>f, "%.15g %.15g %.15g" % tuple(configuration.pbc[i])
 
     # make list of species
-    counts = {}
-    for i in configuration.atoms:
-        if i.name in counts:
-            counts[i.name] += 1
-        else:
-            counts[i.name] = 1
+    counts = configuration.count_species()
     # reverse to have Si before C
     species = sorted(counts.keys(), reverse=True)
 
@@ -386,6 +411,25 @@ def import_poscar(ifile):
     return model.Model(atoms, pbc=pbc, title=title)
 
 
+def export_as_gulp(configuration, f):
+    "export coordinates in GULP input format"
+    print >>f, ""
+    print >>f, "# title:", configuration.title
+    print >>f, "# Configuration"
+    print >>f, "cell"
+    pbc = configuration.pbc 
+    if pbc is None or len(pbc) == 0:
+        raise ValueError("no PBC")
+    assert is_diagonal(numpy.array(pbc))
+    print >>f, "%.6g %.6g %.6g %g %g %g" % (pbc[0][0], pbc[1][1], pbc[2][2],
+                                            90., 90., 90.)
+    print >>f, "fractional"
+    H_1 = linalg.inv(pbc) 
+    for i in configuration.atoms:
+        s = numpy.dot(i.pos, H_1) % 1.0
+        print >>f, "%s   core %11.6g %11.6g %11.6g    0.0000000  1.0000000" % (
+                                                      i.name, s[0], s[1], s[2])
+
 def get_type_from_filename(name):
     lname = name.lower()
     if name.endswith(".cfg"):
@@ -396,6 +440,8 @@ def get_type_from_filename(name):
         return "xmol"
     elif name.endswith(".at"):
         return "pielaszek"
+    elif name.endswith(".gin"):
+        return "gulp"
     #TODO strip directory(?)
     elif "revcon" in lname or "config" in lname:
         return "dlpoly"

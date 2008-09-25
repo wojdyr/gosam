@@ -44,7 +44,7 @@ def make_simple_cubic_lattice():
 def make_sic_lattice():
     print "---> Preparing Cubic SiC"
     #cell = graingen.CubicUnitCell(4.3581) # 4.3596 4.36
-    cell = graingen.CubicUnitCell(4.32)  # value from Tersoff '89
+    cell = graingen.CubicUnitCell(4.32119155) # value from Tersoff '89 / should be 4.321059889
 
     # nodes in unit cell (as fraction of unit cell parameters)
     node_pos = fcc_node_pos[:]
@@ -116,6 +116,15 @@ class RotatedMonocrystal(OrthorhombicPbcModel):
         """upper and z_margin are used for building bicrystal
         """
         self.atoms = []
+        vmin, vmax = self.get_box_to_fill(self.dim, upper, z_margin)
+        if self.rot_mat is not None:
+            self.unit_cell.rotate(self.rot_mat)
+        self._do_gen_atoms(vmin, vmax)
+        if upper is None:
+            print "Number of atoms in monocrystal: %i" % len(self.atoms) 
+        return self.atoms
+
+    def get_box_to_fill(self, dim, upper, z_margin):
         # make it a bit asymmetric, to avoid problems with PBC
         eps = 0.001
         vmin = -self.dim/2. + eps
@@ -129,12 +138,8 @@ class RotatedMonocrystal(OrthorhombicPbcModel):
             vmax[2] = eps
             if z_margin:
                 vmin[2] += z_margin / 2
-        if self.rot_mat is not None:
-            self.unit_cell.rotate(self.rot_mat)
-        self._do_gen_atoms(vmin, vmax)
-        if upper is None:
-            print "Number of atoms in monocrystal: %i" % len(self.atoms) 
-        return self.atoms
+        return vmin, vmax
+
 
 
 # primitive adjusting of PBC box for [010] rotation

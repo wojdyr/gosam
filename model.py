@@ -167,16 +167,19 @@ class Model:
             b.pos += d / 2
 
 
+    def get_atoms_to_be_removed(self, atoms, distance):
+        assert rotmat.is_diagonal(self.pbc)
+        cm = mdprim.CellMethod(atoms, distance, self.pbc)
+        return cm.get_atoms_to_remove()
+
     def remove_close_neighbours(self, distance, atoms=None):
         """Remove atoms in such a way that no two atoms are in distance
         smaller than `distance'
         """
         if atoms is None:
             atoms = self.atoms
-        assert rotmat.is_diagonal(self.pbc)
         before = len(atoms)
-        cm = mdprim.CellMethod(atoms, distance, self.pbc)
-        to_be_deleted = cm.get_atoms_to_remove()
+        to_be_deleted = self.get_atoms_to_be_removed(atoms, distance)
         self._print_deleted_dist_stats(atoms, to_be_deleted)
         #self._shift_before_removing(to_be_deleted)
         tbd_idx = to_be_deleted.keys()
@@ -188,6 +191,75 @@ class Model:
         if atoms is self.atoms: # otherwise self.atoms stats are useless
             self.print_stochiometry()
         self.log("removed %i too-close atoms" % rem)
+
+
+    def output_all_removal_possibilities(self, filename):
+        assert "%" in filename
+
+        for n, i in enumerate(self.atoms):
+            i.r1 = None
+            i.r2 = None
+            i.nr = n
+
+        pbc_half = array(self.pbc.diagonal()) / 2.
+
+        to_be_rm1 = self.get_atoms_to_be_removed(self.atoms, 1.87)
+        for k,v in to_be_rm1.iteritems():
+            atom = self.atoms[k]
+            d = min(atom.get_dist(self.atoms[j], pbc_half=pbc_half) for j in v)
+            atom.r1 = d
+
+        a_name = self.atoms[0].name
+        a_atoms = [i for i in self.atoms if i.name == a_name]
+        b_atoms = [i for i in self.atoms if i.name != a_name]
+        for x_atoms in a_atoms, b_atoms:
+            to_be_rm2 = self.get_atoms_to_be_removed(x_atoms, 3.0)
+            for k,v in to_be_rm2.iteritems():
+                atom = x_atoms[k]
+                d = min(atom.get_dist(x_atoms[j], pbc_half=pbc_half) for j in v)
+                #if not atom.r1 or d > atom.r1:
+                atom.r2 = d
+
+        distances1 = [0] + [i.r1 + 1e-6 for i in self.atoms if i.r1]
+        distances2 = [0] + [i.r2 + 1e-6 for i in self.atoms if i.r2]
+
+        def sort_and_uniq(dd):
+            dd.sort()
+            n = 0
+            while n+1 < len(dd):
+                if abs(dd[n] - dd[n+1]) < 1e-6:
+                    del dd[n+1]
+                else:
+                    n += 1
+
+        sort_and_uniq(distances1)
+        sort_and_uniq(distances2)
+        print "inter-atomic distances:", distances1
+        print "same species distances:", distances2
+        print "atoms count:", len(self.atoms)
+        print
+
+        counter = 1
+        orig_atoms = self.atoms
+        all_rm = []
+        for j in distances2:
+            for i in distances1:
+                #if j <= i:
+                #    continue
+                rm = [a.nr for a in orig_atoms if (a.r1 and a.r1 < i) 
+                                                   or (a.r2 and a.r2 < j)]
+                if rm in all_rm:
+                    print "ignore cutoffs: %g, %g (%d atoms)" % (i, j, len(rm))
+                    continue
+                all_rm.append(rm)
+                self.title = "del %d atoms with cutoffs: %g, %g" % (
+                                                                len(rm), i, j)
+                print self.title
+                self.atoms = [a for a in orig_atoms if a.nr not in rm]
+                fn = filename.replace('%', str(counter))
+                self.export_atoms(fn)
+                counter += 1
+
 
 
     def export_atoms(self, f, format=None):
@@ -214,6 +286,10 @@ class Model:
             mdfile.export_for_atomeye(self, f)
         elif format == "poscar":
             mdfile.export_as_poscar(self, f)
+        elif format == "gulp":
+            mdfile.export_as_gulp(self, f)
+        elif format == "lammps":
+            mdfile.export_as_lammps(self, f)
         else:
             print >>f, "Unknown format requested: %s" % format
 
@@ -258,5 +334,15 @@ class Model:
             pbc[i][i] = k(max(self.atoms, key=k)) - k(min(self.atoms, key=k)) \
                         + width
         self.pbc = pbc
+
+
+    def count_species(self):
+        counts = {}
+        for i in self.atoms:
+            if i.name in counts:
+                counts[i.name] += 1
+            else:
+                counts[i.name] = 1
+        return counts
 
 

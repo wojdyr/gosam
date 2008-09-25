@@ -110,6 +110,7 @@ class BicrystalOptions:
         self.mono2 = None
         self.remove_dist = None
         self.remove_dist2 = None
+        self.all = None
 
         self.lattice = make_sic_lattice()
         a = self.lattice.unit_cell.a
@@ -203,6 +204,8 @@ def parse_args():
             opts.mono1 = True
         elif i == "mono2":
             opts.mono2 = True
+        elif i == "all":
+            opts.all = True
         elif i.startswith("remove:"):
             opts.remove_dist = float(i[7:])
         elif i.startswith("remove2:"):
@@ -281,6 +284,7 @@ def main():
         config = Bicrystal(opts.lattice, opts.dim, rot_mat1, rot_mat2,
                            title=title)
     config.generate_atoms(z_margin=opts.vacuum)
+
     if not opts.mono1 and not opts.mono2 and opts.remove_dist > 0:
         print "Removing atoms in distance < %s ..." % opts.remove_dist
         config.remove_close_neighbours(opts.remove_dist)
@@ -300,6 +304,10 @@ def main():
                                      aa[0].name, aa[0].name, opts.remove_dist2)
             config.remove_close_neighbours(distance=opts.remove_dist2, atoms=aa)
             config.atoms += aa
+
+    if opts.all:
+        config.output_all_removal_possibilities(opts.output_filename)
+        return
 
     config.export_atoms(opts.output_filename)
 

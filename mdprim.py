@@ -120,6 +120,12 @@ class CellMethod:
     def _make_cells(self, r):
         self.r = r
         self.nc = (self.box_d / (r + 1e-9)).astype(int)
+
+        # avoid memory problems when cut-off is small
+        if self.nc[0] * self.nc[1] * self.nc[2] > 2 * len(self.atoms):
+            f = float(self.nc[0] * self.nc[1] * self.nc[2]) / len(self.atoms)
+            self.nc /= f**(1./3)
+
         cell_count = self.nc[0] * self.nc[1] * self.nc[2]
         self.cells = [[] for i in range(cell_count)]
         for a_idx, a in enumerate(self.atoms):
