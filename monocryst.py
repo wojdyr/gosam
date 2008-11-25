@@ -196,8 +196,12 @@ def main():
         lattice = make_sic_lattice()
     elif what == "si":
         lattice = make_si_lattice()
+    elif what == "diamond":
+        lattice = make_diamond_lattice()
     elif what.startswith("sic:"):
         lattice = make_sic_polytype_lattice(what[4:])
+    else:
+        raise ValueError("Unknown lattice: %s" % what)
     nx, ny, nz = float(sys.argv[2]), float(sys.argv[3]), float(sys.argv[4]) 
     mono(lattice, nx, ny, nz, output_filename=sys.argv[5])
 
