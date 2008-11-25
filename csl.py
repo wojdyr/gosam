@@ -128,7 +128,7 @@ def beautify_matrix(T):
         y = numpy.abs(b)
         #return x.sum() < y.sum()
         #return x.sum() < y.sum() or (x.sum() == y.sum() and x.max() < y.max())
-        return x.max() < y.max()
+        return x.max() < y.max() or (x.max() == y.max() and x.sum() < y.sum())
 
     def try_add(a, b):
         changed = False
