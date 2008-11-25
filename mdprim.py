@@ -122,8 +122,9 @@ class CellMethod:
         self.nc = (self.box_d / (r + 1e-9)).astype(int)
 
         # avoid memory problems when cut-off is small
-        if self.nc[0] * self.nc[1] * self.nc[2] > 2 * len(self.atoms):
-            f = float(self.nc[0] * self.nc[1] * self.nc[2]) / len(self.atoms)
+        nc_prod = self.nc[0] * self.nc[1] * self.nc[2]
+        if nc_prod > 1000000 and nc_prod > 2 * len(self.atoms):
+            f = float(nc_prod) / len(self.atoms)
             self.nc /= f**(1./3)
 
         cell_count = self.nc[0] * self.nc[1] * self.nc[2]
