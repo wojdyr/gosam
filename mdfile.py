@@ -16,6 +16,7 @@ Supported file types (some of them are supported partially):
 import sys
 import operator
 from optparse import OptionParser
+import bz2 
 import numpy
 from numpy import linalg
 
@@ -449,6 +450,8 @@ def get_type_from_filename(name):
         return "dlpoly_history"
     elif "poscar" in lname or "contcar" in lname:
         return "poscar"
+    elif name.endswith(".bz2"):
+        return get_type_from_filename(name[:-4])
     else:
         print "Can't deduce filetype from filename:", name
         return None
@@ -456,7 +459,10 @@ def get_type_from_filename(name):
 
 def import_autodetected(filename):
     input_type = get_type_from_filename(filename)
-    infile = file(filename)
+    if filename.endswith(".bz2"):
+        infile = bz2.BZ2File(filename)
+    else:
+        infile = file(filename)
     if input_type == "xmol":
         return import_xmol(infile)
     elif input_type == "dlpoly":
