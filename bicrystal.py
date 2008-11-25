@@ -193,24 +193,29 @@ def parse_args():
     opts.parse_sigma_and_find_theta(sys.argv[3])
 
     opts.req_dim = [float(eval(i, math.__dict__)) for i in sys.argv[4:7]]
+
     options = sys.argv[7:-1]
-    opts.fit = True
-    opts.mono1 = opts.mono2 = False
-    opts.remove_dist = 0.8 * opts.atom_min_dist
     for i in options:
         if i == "nofit":
+            assert opts.fit is None
             opts.fit = False
         elif i == "mono1":
+            assert opts.mono1 is None
             opts.mono1 = True
         elif i == "mono2":
+            assert opts.mono2 is None
             opts.mono2 = True
         elif i == "all":
+            assert opts.all is None
             opts.all = True
         elif i.startswith("remove:"):
+            assert opts.remove_dist is None
             opts.remove_dist = float(i[7:])
         elif i.startswith("remove2:"):
+            assert opts.remove_dist2 is None
             opts.remove_dist2 = float(i[8:])
         elif i.startswith("vacuum:"):
+            assert opts.vacuum is None
             opts.vacuum = float(i[7:]) * 10. #nm -> A
         elif i.startswith("shift:"):
             s = i[6:].split(",")
@@ -220,6 +225,16 @@ def parse_args():
             opts.lattice.shift_nodes(v)
         else:
             raise ValueError("Unknown option: %s" % i)
+    # default values
+    if opts.fit is None:
+        opts.fit = True
+    if opts.mono1 is None:
+        opts.mono1 = False
+    if opts.mono2 is None:
+        opts.mono2 = False
+    if opts.remove_dist is None:
+        opts.remove_dist = 0.8 * opts.atom_min_dist
+
     opts.output_filename = sys.argv[-1]
     return opts
 
