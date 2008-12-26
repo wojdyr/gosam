@@ -82,15 +82,15 @@ class AtomVF(Atom):
         return sqrt(inner(self.vel, self.vel)) 
 
     def get_ekin(self):
-        return 0.5 * self.get_mass() * inner(self.vel, self.vel)
+        conv_factor = 1.0364269e-10 # u * (A/ns)^2 -> eV
+        return conv_factor * 0.5 * self.get_mass() * inner(self.vel, self.vel)
 
     def get_temperature(self):
         if self.vel is None or self.vel[0] is None:
             return 0
-        mv2 = self.get_mass() * inner(self.vel, self.vel)
-        #kB = 0.831451115
-        kB = 831447.2
-        return mv2 / (3*kB)
+        kB = 8.617343e-5 # eV/K
+        #kB = 831447.2 # u A^2 / ns^2 K
+        return 2 * self.get_ekin() / (3*kB)
 
 
 #only supports orthorhombic PBC 
