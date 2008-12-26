@@ -193,32 +193,48 @@ class Model:
         self.log("removed %i too-close atoms" % rem)
 
 
-    def output_all_removal_possibilities(self, filename):
-        assert "%" in filename
+    def add_close_neigh_properties(self):
+        """
+        add .r1 and .r2 members (None or float) to each atom
+        r1 - the closest distance to other atom
+        r2 - the closest distance to other atom with the same symbol
+        """
+        r1_max = 1.87
+        r2_max = 3.00
 
-        for n, i in enumerate(self.atoms):
+        for i in self.atoms:
             i.r1 = None
             i.r2 = None
-            i.nr = n
 
         pbc_half = array(self.pbc.diagonal()) / 2.
 
-        to_be_rm1 = self.get_atoms_to_be_removed(self.atoms, 1.87)
+        # r1
+        to_be_rm1 = self.get_atoms_to_be_removed(self.atoms, r1_max)
         for k,v in to_be_rm1.iteritems():
             atom = self.atoms[k]
             d = min(atom.get_dist(self.atoms[j], pbc_half=pbc_half) for j in v)
             atom.r1 = d
 
+        # r2
         a_name = self.atoms[0].name
         a_atoms = [i for i in self.atoms if i.name == a_name]
         b_atoms = [i for i in self.atoms if i.name != a_name]
         for x_atoms in a_atoms, b_atoms:
-            to_be_rm2 = self.get_atoms_to_be_removed(x_atoms, 3.0)
+            to_be_rm2 = self.get_atoms_to_be_removed(x_atoms, r2_max)
             for k,v in to_be_rm2.iteritems():
                 atom = x_atoms[k]
                 d = min(atom.get_dist(x_atoms[j], pbc_half=pbc_half) for j in v)
                 #if not atom.r1 or d > atom.r1:
                 atom.r2 = d
+
+
+    def output_all_removal_possibilities(self, filename):
+        assert "%" in filename
+
+        for n, i in enumerate(self.atoms):
+            i.nr = n
+
+        self.add_close_neigh_properties()
 
         distances1 = [0] + [i.r1 + 1e-6 for i in self.atoms if i.r1]
         distances2 = [0] + [i.r2 + 1e-6 for i in self.atoms if i.r2]
