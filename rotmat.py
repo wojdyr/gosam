@@ -35,7 +35,30 @@ def round_to_multiplicity(m, val):
     return (round(float(val) / m) or 1) * m 
 
 def is_diagonal(m):
+    m = array(m)
     assert m.shape == (3,3)
     return (sign(m) == identity(3)).all()
+
+
+class StdDev:
+    def __init__(self):
+        self.n = 0
+        self.mean = 0.
+        self.S = 0.
+
+    def __str__(self):
+        return "%s +- %s" % (self.mean, self.get_stddev())
+
+    def get_variance(self):
+        return self.S / (self.n - 1) 
+
+    def get_stddev(self):  
+        return sqrt(self.get_variance())
+
+    def add_x(self, x): 
+        self.n += 1 
+        delta = x - self.mean 
+        self.mean += delta / self.n
+        self.S += delta * (x - self.mean)
 
 

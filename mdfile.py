@@ -24,7 +24,7 @@ from mdprim import AtomVF
 import model 
 import pse
 from utils import get_command_line
-from rotmat import is_diagonal
+from rotmat import is_diagonal, StdDev
 
 
 def export_for_dlpoly(atoms, f, title, sort=True):
@@ -257,7 +257,7 @@ def import_atomeye(ifile):
             if has_velocity:
                 vel = (float(s[3]), float(s[4]), float(s[5]))
                 # if velocities are also reduced:
-                vel = numpy.dot(vel, H) 
+                #vel = numpy.dot(vel, H) 
             atoms.append(AtomVF(spec, len(atoms), pos, vel, None))
     return model.Model(atoms, pbc=pbc, title="from cfg")
 
@@ -492,17 +492,18 @@ def parse_translate_option(str):
     return tr_map
 
 
-def convert():
-    "converts atomistic files" 
+def parse_options():
     parser = OptionParser("usage: %prog [--pbc=list] input_file output_file")
     parser.add_option("--pbc", help="PBC, eg. '[(60,0,0),(0,60,0),(0,0,60)]'")
     parser.add_option("--filter", help="e.g. '15 < z < 30'")
     parser.add_option("--translate", help="e.g. 'Si->C, C->Si'")
     (options, args) = parser.parse_args()
-    if len(args) != 2:
+    if not (len(args) == 2 or ("vs" in args and len(args) in (5,6))):
         parser.error("Two arguments (input and output filenames) are required")
-    input_filename = args[0]
-    output_filename = args[1]
+    return (options, args)
+
+
+def process_input(input_filename, options):
     configuration = import_autodetected(input_filename)
     if options.pbc:
         configuration.pbc = eval(options.pbc)
@@ -519,15 +520,65 @@ def convert():
             if i.name in tr_map:
                 i.name = tr_map[i.name]
 
+def convert():
+    "converts atomistic files" 
+    options, args = parse_options()
+    configuration = process_input(args[0], options)
+    output_filename = args[1]
     output_type = get_type_from_filename(output_filename)
     #TODO: check if file already exists
     ofile = file(output_filename, 'w')
     configuration.export_atoms(output_filename, output_type)
 
 
+def avg_plot():
+    options, args = parse_options()
+    configuration = process_input(args[0], options)
+    input_filename = args[0]
+    output_filename = args[1]
+    def get_atom_func(name):
+        def x(atom): return atom.pos[0]
+        def y(atom): return atom.pos[1]
+        def z(atom): return atom.pos[2]
+        def vx(atom): return atom.vel[0] # [A/ns]
+        def vy(atom): return atom.vel[1]
+        def vz(atom): return atom.vel[2]
+        def v(atom): return atom.get_velocity()
+        def T(atom): return atom.get_temperature()
+        def Ekin(atom): return atom.get_ekin()
+        return eval(name)
+    yfunc = get_atom_func(args[2])
+    assert args[3] == "vs"
+    xfunc = get_atom_func(args[4])
+    xy = []
+    configuration = import_autodetected(input_filename)
+    for i in configuration.atoms:
+        xy.append((xfunc(i), yfunc(i)))
+
+    minx = min(i[0] for i in xy)
+    maxx = max(i[0] for i in xy) + 1e-6
+    avgy = sum(i[1] for i in xy) / len(xy)
+    print "n=%d, x E <%g,%g), avg y = %g" % (len(xy), minx, maxx, avgy)
+
+    nbins = (int(args[5]) if len(args) >= 6 else 128)
+    data = [StdDev() for i in range(nbins)]
+    t = nbins / (maxx - minx)
+    for x,y in xy:
+        bin = int((x - minx) * t)
+        data[bin].add_x(y)
+    ofile = file(output_filename, 'w')
+    for n, d in enumerate(data):
+        if d.n == 0:
+            continue
+        x = minx + (n + 0.5) / t
+        print >>ofile, x, d.mean, d.n, d.get_stddev()
+
+
 if __name__ == '__main__':
     if sys.argv[1] == "--dlpoly-history-info":
         dlpoly_history_info(file(sys.argv[2]))
+    elif "vs" in sys.argv:
+        avg_plot()
     else:
         convert()
 
