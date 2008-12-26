@@ -244,12 +244,14 @@ def import_atomeye(ifile):
     vel = None
     H = numpy.array(pbc, float)
     for line in ifile:
-        if not line or line[0] == '#':
+        if not line or line.isspace() or line[0] == '#':
             continue
         elif line[0].isalpha():
             spec = line.strip()
-        elif len(line) > 20:
+        else:
             s = line.split()
+            if len(s) == 1: # this is probably atomic mass
+                continue
             pos = (float(s[0]), float(s[1]), float(s[2]))
             pos = numpy.dot(pos, H)
             if has_velocity:
