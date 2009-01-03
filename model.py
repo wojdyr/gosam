@@ -15,6 +15,18 @@ import mdprim
 import mdfile
 import rotmat
 
+
+def _sort_and_uniq(dd):
+    "sort real number and leave only unique ones (compare using epsilon)"
+    dd.sort()
+    n = 0
+    while n+1 < len(dd):
+        if abs(dd[n] - dd[n+1]) < 1e-6:
+            del dd[n+1]
+        else:
+            n += 1
+
+
 class Model:
     """Configuration -- atoms, PBC (only parallelepiped)"""
     def __init__(self, atoms, pbc, title=""):
@@ -239,17 +251,8 @@ class Model:
         distances1 = [0] + [i.r1 + 1e-6 for i in self.atoms if i.r1]
         distances2 = [0] + [i.r2 + 1e-6 for i in self.atoms if i.r2]
 
-        def sort_and_uniq(dd):
-            dd.sort()
-            n = 0
-            while n+1 < len(dd):
-                if abs(dd[n] - dd[n+1]) < 1e-6:
-                    del dd[n+1]
-                else:
-                    n += 1
-
-        sort_and_uniq(distances1)
-        sort_and_uniq(distances2)
+        _sort_and_uniq(distances1)
+        _sort_and_uniq(distances2)
         print "inter-atomic distances:", distances1
         print "same species distances:", distances2
         print "atoms count:", len(self.atoms)
@@ -276,6 +279,27 @@ class Model:
                 self.export_atoms(fn)
                 counter += 1
 
+
+    def output_all_removal2_possibilities(self, filename):
+        assert "%" in filename
+
+        distances2 = [0]
+        for i in self.atoms:
+            d = 2 * i.pos[2]
+            if 0. < d < 3.0:
+                distances2.append(d + 1e-6)
+        _sort_and_uniq(distances2)
+        print "same species distances:", distances2
+        print "atoms count:", len(self.atoms)
+
+        orig_atoms = self.atoms
+        for n, j in enumerate(distances2):
+            self.atoms = [a for a in orig_atoms if not 0. < a.pos[2] < j / 2.]
+            ndel = len(orig_atoms) - len(self.atoms)
+            self.title = "del %d atoms with cutoff: %g" % (ndel, j)
+            print self.title
+            fn = filename.replace('%', str(n))
+            self.export_atoms(fn)
 
 
     def export_atoms(self, f, format=None):

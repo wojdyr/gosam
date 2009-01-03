@@ -26,10 +26,8 @@ Usage:
              to make the system periodic 
    * mono1 - generate only upper half of the bicrystal, i.e. monocrystal
    * mono2 - generate only bottom half of the bicrystal, i.e. monocrystal
-   * remove:dist - by default, if there are two atoms in distance < 80% of
-             minimal interatomic distance in perfect crystal, one of the atoms
-             is removed. You can specify "remove:0" to disable atom removing,
-             or other value [in Angstroms] to change the default distance.
+   * remove:dist - If there are two atoms in distance < dist [Angstroms], 
+             one of the atoms is removed. 
    * remove2:dist - for binary systems only; like the option above, but only
              pairs of atoms of the same species are checked.
    * vacuum:length - vacuum in z direction. Makes 2D slab with z dimension
@@ -42,9 +40,7 @@ Examples:
     TODO: bicrystal.py 100 s001 5 20 20 80 tilt_s5.cfg 
 
 caution: the program was tested only for a few cases (may not work in others)
-
 """
-
 
 import math
 from math import sin, cos, pi, atan, sqrt, degrees, radians, asin, acos
@@ -113,9 +109,10 @@ class BicrystalOptions:
         self.all = None
 
         self.lattice = make_sic_lattice()
-        a = self.lattice.unit_cell.a
+        ## unused since `remove' option has default value 0 (and not 80%) 
+        #a = self.lattice.unit_cell.a
         # for zinc blende structure:
-        self.atom_min_dist = a * sqrt(3) / 4 
+        #self.atom_min_dist = a * sqrt(3) / 4 
 
 
     def parse_sigma_and_find_theta(self, sigma_arg):
@@ -232,8 +229,8 @@ def parse_args():
         opts.mono1 = False
     if opts.mono2 is None:
         opts.mono2 = False
-    if opts.remove_dist is None:
-        opts.remove_dist = 0.8 * opts.atom_min_dist
+    #if opts.remove_dist is None:
+    #    opts.remove_dist = 0.8 * opts.atom_min_dist
 
     opts.output_filename = sys.argv[-1]
     return opts
@@ -321,7 +318,8 @@ def main():
             config.atoms += aa
 
     if opts.all:
-        config.output_all_removal_possibilities(opts.output_filename)
+        #config.output_all_removal_possibilities(opts.output_filename)
+        config.output_all_removal2_possibilities(opts.output_filename)
         return
 
     config.export_atoms(opts.output_filename)
