@@ -192,12 +192,8 @@ def export_for_atomeye(configuration, f, aux=None):
     if not isinstance(pbc, numpy.ndarray):
         pbc = numpy.array(pbc)
     print >>f, "Number of particles = %i" % len(configuration.atoms) 
-    print >>f, "# file written by gosam (SVN $Revision$)"
-    cmd = get_command_line()
-    print >>f, "# " + cmd
-    if configuration.title and configuration.title != cmd:
-        print >>f, "#", configuration.title
-    print >>f, "#", get_stechiometry_string(configuration)
+    for i in get_comment_list(configuration):
+        print >>f, "# " + i
     print >>f, "A = 1.0 Angstrom (basic length-scale)"
     for i in range(3):
         for j in range(3):
@@ -316,12 +312,20 @@ def import_lammps_data(ifile):
 
     return model.Model(atoms, pbc=pbc, title="from lammps data")
 
+def get_comment_list(configuration):
+    cmd = get_command_line()
+    cc = ["file written by gosam (SVN $Revision$)", cmd]
+    if configuration.title and configuration.title != cmd:
+        cc.append(configuration.title)
+    cc.append(get_stechiometry_string(configuration))
+    return cc
+
 
 def export_as_lammps(configuration, f):
     "exporting coordinates as LAMMPS input data file"
     assert is_diagonal(numpy.array(configuration.pbc))
-    print >>f, "# file written by gosam (SVN $Revision$)"
-    print >>f, "#", configuration.title 
+    for i in get_comment_list(configuration):
+        print >>f, "# " + i
     print >>f
     counts = configuration.count_species()
     species = sorted(counts.keys())
@@ -497,6 +501,8 @@ def parse_options():
     parser.add_option("--pbc", help="PBC, eg. '[(60,0,0),(0,60,0),(0,0,60)]'")
     parser.add_option("--filter", help="e.g. '15 < z < 30'")
     parser.add_option("--translate", help="e.g. 'Si->C, C->Si'")
+    parser.add_option("--reference", help="adds dx, dy and dz properties",
+                      metavar="FILE")
     (options, args) = parser.parse_args()
     if not (len(args) == 2 or ("vs" in args and len(args) in (5,6))):
         parser.error("Two arguments (input and output filenames) are required")
@@ -507,6 +513,23 @@ def process_input(input_filename, options):
     configuration = import_autodetected(input_filename)
     if options.pbc:
         configuration.pbc = eval(options.pbc)
+
+    if options.reference:
+        cref = import_autodetected(options.reference)
+        assert len(cref.atoms) == len(configuration.atoms)
+        pbc = numpy.diagonal(configuration.pbc)
+        for n, a1 in enumerate(configuration.atoms):
+            a0 = cref.atoms[n]
+            a1.dpos = [a1.pos[0] - a0.pos[0], 
+                       a1.pos[1] - a0.pos[1], 
+                       a1.pos[2] - a0.pos[2]]
+            for i in range(3):
+                if a1.dpos[i] > pbc[i] / 2.:
+                    a1.dpos[i] -= pbc[i]
+                elif a1.dpos[i] < -pbc[i] / 2.:
+                    a1.dpos[i] += pbc[i]
+        del cref
+
     if options.filter:
         def f(atom):
             name = atom.name
@@ -519,6 +542,7 @@ def process_input(input_filename, options):
         for i in configuration.atoms:
             if i.name in tr_map:
                 i.name = tr_map[i.name]
+    return configuration
 
 def convert():
     "converts atomistic files" 
@@ -531,47 +555,65 @@ def convert():
     configuration.export_atoms(output_filename, output_type)
 
 
+def get_atom_func(name):
+    def x(atom): return atom.pos[0]
+    def y(atom): return atom.pos[1]
+    def z(atom): return atom.pos[2]
+    def vx(atom): return atom.vel[0] # [A/ns]
+    def vy(atom): return atom.vel[1]
+    def vz(atom): return atom.vel[2]
+    def v(atom): return atom.get_velocity()
+    def T(atom): return atom.get_temperature()
+    def Ekin(atom): return atom.get_ekin()
+    def dx(atom): return atom.dpos[0]
+    def dy(atom): return atom.dpos[1]
+    def dz(atom): return atom.dpos[2]
+    return eval(name)
+
 def avg_plot():
     options, args = parse_options()
     configuration = process_input(args[0], options)
-    input_filename = args[0]
     output_filename = args[1]
-    def get_atom_func(name):
-        def x(atom): return atom.pos[0]
-        def y(atom): return atom.pos[1]
-        def z(atom): return atom.pos[2]
-        def vx(atom): return atom.vel[0] # [A/ns]
-        def vy(atom): return atom.vel[1]
-        def vz(atom): return atom.vel[2]
-        def v(atom): return atom.get_velocity()
-        def T(atom): return atom.get_temperature()
-        def Ekin(atom): return atom.get_ekin()
-        return eval(name)
-    yfunc = get_atom_func(args[2])
+    yfuncs = [get_atom_func(i) for i in args[2].split(",")]
     assert args[3] == "vs"
     xfunc = get_atom_func(args[4])
     xy = []
-    configuration = import_autodetected(input_filename)
-    for i in configuration.atoms:
-        xy.append((xfunc(i), yfunc(i)))
-
+    if len(yfuncs) == 1:
+        yfunc = yfuncs[0]
+        for i in configuration.atoms:
+            xy.append((xfunc(i), yfunc(i)))
+    else:
+        for i in configuration.atoms:
+            xy.append((xfunc(i),) + tuple(yfunc(i) for yfunc in yfuncs))
     minx = min(i[0] for i in xy)
     maxx = max(i[0] for i in xy) + 1e-6
-    avgy = sum(i[1] for i in xy) / len(xy)
-    print "n=%d, x E <%g,%g), avg y = %g" % (len(xy), minx, maxx, avgy)
+    print "n=%d, x E <%g,%g)" % (len(xy), minx, maxx)
+    for n, yf in enumerate(yfuncs):
+        miny = min(i[n+1] for i in xy)
+        maxy = max(i[n+1] for i in xy) 
+        avgy = sum(i[n+1] for i in xy) / len(xy)
+        print "%s E <%g, %g>, avg: %g" % (yf.__name__, miny, maxy, avgy)
 
+    # make histogram
     nbins = (int(args[5]) if len(args) >= 6 else 128)
-    data = [StdDev() for i in range(nbins)]
     t = nbins / (maxx - minx)
-    for x,y in xy:
-        bin = int((x - minx) * t)
-        data[bin].add_x(y)
+    lines = [[minx + (n + 0.5) / t] for n in range(nbins)]
+
+    for yn in range(len(yfuncs)):
+        data = [StdDev() for i in range(nbins)]
+        for i in xy:
+            x, y = i[0], i[1+yn]
+            bin = int((x - minx) * t)
+            data[bin].add_x(y)
+
+        for n, d in enumerate(data):
+            if d.n > 0:
+                lines[n] += [d.mean, d.n, d.get_stddev()]
+
     ofile = file(output_filename, 'w')
-    for n, d in enumerate(data):
-        if d.n == 0:
-            continue
-        x = minx + (n + 0.5) / t
-        print >>ofile, x, d.mean, d.n, d.get_stddev()
+    for line in lines:
+        if len(line) > 1:
+            print >>ofile, " ".join(str(i) for i in line)
 
 
 if __name__ == '__main__':
