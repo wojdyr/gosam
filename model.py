@@ -286,7 +286,7 @@ class Model:
         distances2 = [0]
         for i in self.atoms:
             d = 2 * i.pos[2]
-            if 0. < d < 3.0:
+            if 1e-7 < d < 3.0:
                 distances2.append(d + 1e-6)
         _sort_and_uniq(distances2)
         print "same species distances:", distances2
@@ -294,7 +294,7 @@ class Model:
 
         orig_atoms = self.atoms
         for n, j in enumerate(distances2):
-            self.atoms = [a for a in orig_atoms if not 0. < a.pos[2] < j / 2.]
+            self.atoms = [a for a in orig_atoms if not 1e-7 < a.pos[2] < j / 2.]
             ndel = len(orig_atoms) - len(self.atoms)
             self.title = "del %d atoms with cutoff: %g" % (ndel, j)
             print self.title
@@ -307,7 +307,7 @@ class Model:
         save atoms to file f in one of possible formats 
         """
         if type(f) in (str, unicode):
-            f = file(f, 'w')
+            f = mdfile.open_any(f, 'w')
         if format is None:
             format = mdfile.get_type_from_filename(f.name);
         format = format.lower()

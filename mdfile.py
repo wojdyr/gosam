@@ -463,12 +463,16 @@ def get_type_from_filename(name):
         return None
 
 
+def open_any(name, mode='r'):
+    if name.endswith(".bz2"):
+        return bz2.BZ2File(name, mode)
+    else:
+        return file(name, mode)
+
+
 def import_autodetected(filename):
     input_type = get_type_from_filename(filename)
-    if filename.endswith(".bz2"):
-        infile = bz2.BZ2File(filename)
-    else:
-        infile = file(filename)
+    infile = open_any(filename)
     if input_type == "xmol":
         return import_xmol(infile)
     elif input_type == "dlpoly":
