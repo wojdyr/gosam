@@ -29,10 +29,11 @@ def _sort_and_uniq(dd):
 
 class Model:
     """Configuration -- atoms, PBC (only parallelepiped)"""
-    def __init__(self, atoms, pbc, title=""):
+    def __init__(self, atoms, pbc, title="", comments=None):
         self.atoms = atoms
         self.pbc = pbc 
         self.title = title
+        self.comments = comments
 
     def log(self, text):
         "to enable logging, do 'operations=[]'"

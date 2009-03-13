@@ -27,6 +27,17 @@ from utils import get_command_line
 from rotmat import is_diagonal, StdDev
 
 
+def get_orthorhombic_pbc(full_pbc):
+    """\
+    the input is matrix 3x3, the output is diagonal. 
+    Non-diagonal elements must be zero.
+    """
+    if full_pbc is None or len(full_pbc) == 0:
+        raise ValueError("no PBC")
+    assert is_diagonal(numpy.array(full_pbc))
+    return numpy.diagonal(full_pbc)
+
+
 def export_for_dlpoly(atoms, f, title, sort=True):
     levcfg = 0 #only coordinates in file
     #imcon = 0 #no periodic boundaries 
@@ -222,10 +233,13 @@ def import_atomeye(ifile):
     # read header
     pbc = [[0,0,0], [0,0,0], [0,0,0]]
     has_velocity = True
+    comments = ""
     for line in ifile:
-        if not line or line[0] == '#':
+        if not line:
             continue
-        if line.startswith("Number of particles"):
+        elif line[0] == '#':
+            comments += line[1:]
+        elif line.startswith("Number of particles"):
             number_of_atoms = int(line.split("=")[1])
         elif line.startswith("H0"):
             k,v = line[2:].split("=")
@@ -255,7 +269,7 @@ def import_atomeye(ifile):
                 # if velocities are also reduced:
                 #vel = numpy.dot(vel, H) 
             atoms.append(AtomVF(spec, len(atoms), pos, vel, None))
-    return model.Model(atoms, pbc=pbc, title="from cfg")
+    return model.Model(atoms, pbc=pbc, title="from cfg", comments=comments)
 
 
 # This file format doesn't contain atom names, only numbers of atom types.
@@ -264,6 +278,7 @@ def import_atomeye(ifile):
 # as comments, e.g.: "2 atom types # C Si"
 def import_lammps_data(ifile):
     pbc = [[0,0,0], [0,0,0], [0,0,0]]
+    comments = ""
     while 1:
         line = ifile.readline()
         if '#' in line:
@@ -274,6 +289,8 @@ def import_lammps_data(ifile):
             comment = ""
             line = line.strip()
         if not line:
+            if comment:
+                comments += comment
             continue
         if line.endswith("atoms"):
             number_of_atoms = int(line.split()[0])
@@ -310,7 +327,8 @@ def import_lammps_data(ifile):
         pos = float(s[2]), float(s[3]), float(s[4])
         atoms.append(AtomVF(name, len(atoms), pos, vel=None, force=None))
 
-    return model.Model(atoms, pbc=pbc, title="from lammps data")
+    return model.Model(atoms, pbc=pbc, title="from lammps data", 
+                       comments=comments)
 
 def get_comment_list(configuration):
     cmd = get_command_line()
@@ -323,7 +341,7 @@ def get_comment_list(configuration):
 
 def export_as_lammps(configuration, f):
     "exporting coordinates as LAMMPS input data file"
-    assert is_diagonal(numpy.array(configuration.pbc))
+    ort_pbc = get_orthorhombic_pbc(configuration.pbc)
     for i in get_comment_list(configuration):
         print >>f, "# " + i
     print >>f
@@ -332,9 +350,9 @@ def export_as_lammps(configuration, f):
     print >>f, "\n%d\tatoms" % len(configuration.atoms) 
     print >>f, "%d atom types # %s" % (len(species), " ".join(species))
     spmap = dict((i, n+1) for n, i in enumerate(species))
-    print >>f, "0 %.6f xlo xhi" % configuration.pbc[0][0]
-    print >>f, "0 %.6f ylo yhi" % configuration.pbc[1][1]
-    print >>f, "0 %.6f zlo zhi" % configuration.pbc[2][2]
+    print >>f, "0 %.6f xlo xhi" % ort_pbc[0]
+    print >>f, "0 %.6f ylo yhi" % ort_pbc[1]
+    print >>f, "0 %.6f zlo zhi" % ort_pbc[2]
     print >>f, "\nAtoms\n"
     for n, i in enumerate(configuration.atoms):
         print >>f, "%d\t%d\t%.7f\t%.7f\t%.7f" % (n+1, spmap[i.name], 
@@ -424,14 +442,11 @@ def export_as_gulp(configuration, f):
     print >>f, "# title:", configuration.title
     print >>f, "# Configuration"
     print >>f, "cell"
-    pbc = configuration.pbc 
-    if pbc is None or len(pbc) == 0:
-        raise ValueError("no PBC")
-    assert is_diagonal(numpy.array(pbc))
-    print >>f, "%.6g %.6g %.6g %g %g %g" % (pbc[0][0], pbc[1][1], pbc[2][2],
+    pbc = get_orthorhombic_pbc(configuration.pbc)
+    print >>f, "%.6g %.6g %.6g %g %g %g" % (pbc[0], pbc[1], pbc[2],
                                             90., 90., 90.)
     print >>f, "fractional"
-    H_1 = linalg.inv(pbc) 
+    H_1 = linalg.inv(configuration.pbc) 
     for i in configuration.atoms:
         s = numpy.dot(i.pos, H_1) % 1.0
         print >>f, "%s   core %11.6g %11.6g %11.6g    0.0000000  1.0000000" % (
@@ -466,6 +481,11 @@ def get_type_from_filename(name):
 def open_any(name, mode='r'):
     if name.endswith(".bz2"):
         return bz2.BZ2File(name, mode)
+    elif name == '-':
+        if 'w' in mode:
+            return sys.stdout
+        else:
+            return sys.stdin
     else:
         return file(name, mode)
 
@@ -500,14 +520,14 @@ def parse_translate_option(str):
     return tr_map
 
 
-def parse_options():
+def parse_options(argv):
     parser = OptionParser("usage: %prog [--pbc=list] input_file output_file")
     parser.add_option("--pbc", help="PBC, eg. '[(60,0,0),(0,60,0),(0,0,60)]'")
     parser.add_option("--filter", help="e.g. '15 < z < 30'")
     parser.add_option("--translate", help="e.g. 'Si->C, C->Si'")
     parser.add_option("--reference", help="adds dx, dy and dz properties",
                       metavar="FILE")
-    (options, args) = parser.parse_args()
+    (options, args) = parser.parse_args(argv)
     if not (len(args) == 2 or ("vs" in args and len(args) in (5,6))):
         parser.error("Two arguments (input and output filenames) are required")
     return (options, args)
@@ -548,9 +568,9 @@ def process_input(input_filename, options):
                 i.name = tr_map[i.name]
     return configuration
 
-def convert():
+def convert(argv):
     "converts atomistic files" 
-    options, args = parse_options()
+    options, args = parse_options(argv)
     configuration = process_input(args[0], options)
     output_filename = args[1]
     output_type = get_type_from_filename(output_filename)
@@ -574,8 +594,8 @@ def get_atom_func(name):
     def dz(atom): return atom.dpos[2]
     return eval(name)
 
-def avg_plot():
-    options, args = parse_options()
+def avg_plot(argv):
+    options, args = parse_options(argv)
     configuration = process_input(args[0], options)
     output_filename = args[1]
     yfuncs = [get_atom_func(i) for i in args[2].split(",")]
@@ -614,7 +634,7 @@ def avg_plot():
             if d.n > 0:
                 lines[n] += [d.mean, d.n, d.get_stddev()]
 
-    ofile = file(output_filename, 'w')
+    ofile = open_any(output_filename, 'w')
     for line in lines:
         if len(line) > 1:
             print >>ofile, " ".join(str(i) for i in line)
@@ -624,9 +644,8 @@ if __name__ == '__main__':
     if sys.argv[1] == "--dlpoly-history-info":
         dlpoly_history_info(file(sys.argv[2]))
     elif "vs" in sys.argv:
-        avg_plot()
+        avg_plot(sys.argv[1:])
     else:
-        convert()
-
+        convert(sys.argv[1:])
 
 
