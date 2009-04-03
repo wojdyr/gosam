@@ -14,8 +14,9 @@ Usage:
  - plane - it can be given as:
            * miller indices of the boundary plane in bottom monocrystal lattice
            * "twist" - keyword that means that plane is perpendicular to axis
-           * TODO: miller indices prefixed with letter s (e.g. s001) meaning
-             symmetry place (the boundary will be calculated)
+           * miller indices prefixed with letter m (e.g. m011) meaning
+             median plane; the boundary will be calculated as the median plane
+             rotated by theta/2 around the axis.
              
  - instead of sigma (one number) you can give:
    * m,n (e.g. 23,4)
@@ -33,17 +34,18 @@ Usage:
    * vacuum:length - vacuum in z direction. Makes 2D slab with z dimension
              increased by the length.
    * shift:dx,dy,dz - shift nodes in unit cell. 
+   * lattice:name - e.g. sic 
 
 Examples:
     bicrystal.py 001 twist 5 20 20 80 twist_s5.cfg 
     bicrystal.py 100 013 5 20 20 80 tilt_s5.cfg 
-    TODO: bicrystal.py 100 s001 5 20 20 80 tilt_s5.cfg 
+    bicrystal.py 100 m011 5 20 20 80 tilt_s5.cfg 
 
 caution: the program was tested only for a few cases (may not work in others)
 """
 
 import math
-from math import sin, cos, pi, atan, sqrt, degrees, radians, asin, acos
+from math import sin, cos, pi, atan, sqrt, degrees, radians, asin, acos, ceil
 import sys
 from copy import deepcopy
 import random
@@ -51,7 +53,7 @@ import numpy
 from numpy import dot, array, identity, inner, zeros
 from numpy import linalg
 from monocryst import RotatedMonocrystal, OrthorhombicPbcModel, \
-                     make_sic_lattice, get_command_line
+                     get_command_line, get_named_lattice
 import csl
 from rotmat import rodrigues, print_matrix, round_to_multiplicity
 
@@ -102,17 +104,14 @@ class BicrystalOptions:
         self.vacuum = None # margin for dim z
         self.dim = None
         self.fit = None
+        self.zfit = None
         self.mono1 = None
         self.mono2 = None
         self.remove_dist = None
         self.remove_dist2 = None
         self.all = None
-
-        self.lattice = make_sic_lattice()
-        ## unused since `remove' option has default value 0 (and not 80%) 
-        #a = self.lattice.unit_cell.a
-        # for zinc blende structure:
-        #self.atom_min_dist = a * sqrt(3) / 4 
+        self.lattice_name = "sic"
+        self.lattice_shift = None
 
 
     def parse_sigma_and_find_theta(self, sigma_arg):
@@ -121,8 +120,13 @@ class BicrystalOptions:
             m, n = None, None
             theta = radians(float(sigma_arg[6:]))
         elif "," not in sigma_arg:
-            sigma = int(sigma_arg)
-            r = csl.find_theta(self.axis, sigma)
+            if sigma_arg.startswith("u"):
+                sigma = int(sigma_arg[1:])
+                min_angle = radians(45.)
+            else:
+                sigma = int(sigma_arg)
+                min_angle = None
+            r = csl.find_theta(self.axis, sigma, min_angle=min_angle)
             if r is None:
                 print "CSL not found! Wrong sigma or axis?"
                 sys.exit()
@@ -130,7 +134,8 @@ class BicrystalOptions:
         else:
             m_, n_ = sigma_arg.split(",")
             m, n = int(m_), int(n_)
-            sigma, theta = csl.cubic_csl(self.axis, m, n)
+            sigma = csl.get_cubic_sigma(self.axis, m, n)
+            theta = csl.get_cubic_theta(self.axis, m, n)
         if sigma is not None:
             print "-------> sigma = %i" % sigma
         print "-------> theta = %.3f deg" % degrees(theta)
@@ -145,26 +150,19 @@ class BicrystalOptions:
         dim = [i * 10 for i in self.req_dim] # nm -> A
         if self.mono1 or self.mono2:
             dim[2] *= 2
+        fit_dim = []
         if self.fit:
-            dim[0] = round_to_multiplicity(min_dim[0], dim[0]) 
-            dim[1] = round_to_multiplicity(min_dim[1], dim[1]) 
-            #if not self.vacuum:
-            dim[2] = round_to_multiplicity(min_dim[2], dim[2]) 
+            fit_dim += [0, 1] 
+            if self.zfit:
+                fit_dim += [2]
+        for i in fit_dim:
+            mult = ceil(float(dim[i]) / min_dim[i]) or 1
+            dim[i] = mult * min_dim[i]
+            # dim[i] = round_to_multiplicity(min_dim[i], dim[i]) 
         if self.vacuum:
             dim[2] += self.vacuum # margin in dim z
         print "-------> dimensions [A]: ", dim[0], dim[1], dim[2]
         self.dim = dim
-
-
-def parse_miller(s):
-    if len(s) == 3 and s.isdigit():
-        return array([int(s[i]) for i in range(3)])
-    elif ',' in s:
-        sp = s.split(",")
-        assert len(sp) == 3
-        return array([int(i) for i in sp])
-    else:
-        raise ValueError("Can't parse miller indices: %s" % s)
 
 
 def parse_args():
@@ -173,21 +171,24 @@ def parse_args():
         sys.exit()
 
     opts = BicrystalOptions()
-    opts.axis = parse_miller(sys.argv[1])
+    opts.axis = csl.parse_miller(sys.argv[1])
     print "-------> rotation axis: [%i %i %i]" % tuple(opts.axis)
+
+    opts.parse_sigma_and_find_theta(sys.argv[3])
 
     plane = sys.argv[2]
     if plane == "twist":
         opts.plane = opts.axis.copy()
-    elif plane.startswith("s"):
-        s_plane = parse_miller(plane[1:])
-        assert 0, "TODO"
-        #opts.plane = 
+    elif plane.startswith("m"):
+        m_plane = csl.parse_miller(plane[1:])
+        if inner(m_plane, opts.axis) != 0:
+            raise ValueError("Axis must be contained in median plane.")
+        R = rodrigues(opts.axis, opts.theta / 2., verbose=False)
+        plane_ = dot(R, m_plane)
+        opts.plane = csl.scale_to_integers(plane_)
     else:
-        opts.plane = parse_miller(plane)
+        opts.plane = csl.parse_miller(plane)
     print "-------> boundary plane: (%i %i %i)" % tuple(opts.plane)
-
-    opts.parse_sigma_and_find_theta(sys.argv[3])
 
     opts.req_dim = [float(eval(i, math.__dict__)) for i in sys.argv[4:7]]
 
@@ -196,6 +197,9 @@ def parse_args():
         if i == "nofit":
             assert opts.fit is None
             opts.fit = False
+        if i == "nozfit":
+            assert opts.zfit is None
+            opts.zfit = False
         elif i == "mono1":
             assert opts.mono1 is None
             opts.mono1 = True
@@ -214,17 +218,20 @@ def parse_args():
         elif i.startswith("vacuum:"):
             assert opts.vacuum is None
             opts.vacuum = float(i[7:]) * 10. #nm -> A
+        elif i.startswith("lattice:"):
+            opts.lattice_name = i[8:]
         elif i.startswith("shift:"):
             s = i[6:].split(",")
             if len(s) != 3:
                 raise ValueError("Wrong format of shift parameter")
-            v = [float(i) for i in s]
-            opts.lattice.shift_nodes(v)
+            opts.lattice_shift = [float(i) for i in s]
         else:
             raise ValueError("Unknown option: %s" % i)
     # default values
     if opts.fit is None:
         opts.fit = True
+    if opts.zfit is None:
+        opts.zfit = True
     if opts.mono1 is None:
         opts.mono1 = False
     if opts.mono2 is None:
@@ -275,7 +282,12 @@ def main():
     invrot = rot.transpose()
     assert (numpy.abs(invrot - linalg.inv(rot)) < 1e-9).all(), "%s != %s" % (
                                                      invrot, linalg.inv(rot))
-    a = opts.lattice.unit_cell.a
+    lattice = get_named_lattice(opts.lattice_name)
+    if opts.lattice_shift:
+        lattice.shift_nodes(opts.lattice_shift)
+    a = lattice.unit_cell.a
+    #print "hack warning: min_dim[1] /= 2."
+    #min_dim[1] /= 2.
     opts.find_dim([i * a for i in min_dim])
 
     #rot_mat1 = rodrigues(opts.axis, rot1) 
@@ -287,13 +299,13 @@ def main():
 
     title = get_command_line()
     if opts.mono1:
-        config = RotatedMonocrystal(opts.lattice, opts.dim, rot_mat1,
+        config = RotatedMonocrystal(lattice, opts.dim, rot_mat1,
                                     title=title)
     elif opts.mono2:
-        config = RotatedMonocrystal(opts.lattice, opts.dim, rot_mat2,
+        config = RotatedMonocrystal(lattice, opts.dim, rot_mat2,
                                     title=title)
     else:
-        config = Bicrystal(opts.lattice, opts.dim, rot_mat1, rot_mat2,
+        config = Bicrystal(lattice, opts.dim, rot_mat1, rot_mat2,
                            title=title)
     config.generate_atoms(z_margin=opts.vacuum)
 

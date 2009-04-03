@@ -179,6 +179,21 @@ def mono(lattice, nx, ny, nz, output_filename="mono.cfg"):
     config.export_atoms(output_filename)
 
 
+def get_named_lattice(name):
+    name = name.lower()
+    if name == "sic":
+        lattice = make_sic_lattice()
+    elif name == "si":
+        lattice = make_si_lattice()
+    elif name == "diamond":
+        lattice = make_diamond_lattice()
+    elif name.startswith("sic:"):
+        lattice = make_sic_polytype_lattice(name[4:])
+    else:
+        raise ValueError("Unknown lattice: %s" % name)
+    return lattice
+
+
 usage = """Usage: 
 monocryst.py crystal nx ny nz filename
  where crystal is one of "si", "sic", "sic:ABABC". 
@@ -191,17 +206,7 @@ def main():
         print usage
         sys.exit()
 
-    what = sys.argv[1].lower()
-    if what == "sic":
-        lattice = make_sic_lattice()
-    elif what == "si":
-        lattice = make_si_lattice()
-    elif what == "diamond":
-        lattice = make_diamond_lattice()
-    elif what.startswith("sic:"):
-        lattice = make_sic_polytype_lattice(what[4:])
-    else:
-        raise ValueError("Unknown lattice: %s" % what)
+    lattice = get_named_lattice(name)
     nx, ny, nz = float(sys.argv[2]), float(sys.argv[3]), float(sys.argv[4]) 
     mono(lattice, nx, ny, nz, output_filename=sys.argv[5])
 

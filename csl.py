@@ -38,39 +38,57 @@ def gcd_array(a):
             r = gcd(r, abs(i))
     return r
 
-def cubic_csl(hkl, m, n):
-    h,k,l = hkl
-    assert coprime(h,k) and coprime(k,l) and coprime(h,l)
-    sqsum = h*h + k*k + l*l
-    assert sqsum > 0
+
+def parse_miller(s):
+    if len(s) == 3 and s.isdigit():
+        return array([int(s[i]) for i in range(3)])
+    elif ',' in s:
+        sp = s.split(",")
+        assert len(sp) == 3
+        return array([int(i) for i in sp])
+    else:
+        raise ValueError("Can't parse miller indices: %s" % s)
+
+
+def get_cubic_sigma(hkl, m, n=1):
+    sqsum = inner(hkl, hkl)
     sigma = m*m + n*n * sqsum
     while sigma != 0 and sigma % 2 == 0:
         sigma /= 2
-    if sigma == 1:
-        return None, None
+    return (sigma if sigma > 1 else None)
+
+def get_cubic_theta(hkl, m, n=1):
+    h,k,l = hkl
+    assert n==1 or coprime(h,k) and coprime(k,l) and coprime(h,l)
+    sqsum = h*h + k*k + l*l
+    assert sqsum > 0
     if m > 0:
-        theta = 2 * atan(sqrt(sqsum) * n / m)
+        return 2 * atan(sqrt(sqsum) * n / m)
     else:
-        theta = pi
-    return sigma, theta
+        return pi
 
 def get_theta_m_n_list(hkl, sigma, verbose=False):
     if sigma == 1:
         return [(0., 0, 0)]
     thetas = []
-    for m in range(50):
-        for n in range(1, 50):
+    max_m = 2 * int(sqrt(sigma))
+    for m in range(max_m):
+        for n in range(1, max_m):
             if not coprime(m, n):
                 continue
-            s, theta = cubic_csl(hkl, m, n)
-            if s == sigma:
-                if verbose:
-                    print "m=%i n=%i" % (m, n), "%.2f" % degrees(theta)
-                thetas.append((theta, m, n))
+            s = get_cubic_sigma(hkl, m, n)
+            if s != sigma:
+                continue
+            theta = get_cubic_theta(hkl, m, n)
+            if verbose:
+                print "m=%i n=%i" % (m, n), "%.2f" % degrees(theta)
+            thetas.append((theta, m, n))
     return thetas
 
-def find_theta(hkl, sigma, verbose=True):
+def find_theta(hkl, sigma, verbose=True, min_angle=None):
     thetas = get_theta_m_n_list(hkl, sigma, verbose=verbose)
+    if min_angle:
+        thetas = [i for i in thetas if i[0] >= min_angle]
     if thetas:
         return min(thetas, key= lambda x: x[0])
 
@@ -215,6 +233,19 @@ def find_smallest_multiplier(a, max_n=1000):
             return i
     raise ValueError("Sorry, we can't make this matrix integer:\n%s" % a)
 
+def find_smallest_real_multiplier(a, max_n=1000):
+    """return the smallest positive real f such that matrix `a' multiplied
+       by f is an integer matrix
+    """
+    m = min(abs(i) for i in a if i != 0) # |the smallest non-zero element|
+    for i in range(1, max_n):
+        t = i / float(m)
+        if is_integer(t * a):
+            return t
+    raise ValueError("Sorry, we can't make this matrix integer:\n%s" % a)
+
+def scale_to_integers(v):
+    return array(v * find_smallest_real_multiplier(v)).round().astype(int)
 
 @transpose_3x3
 def make_csl_from_0_lattice(T, n):
@@ -319,15 +350,19 @@ def find_orthorhombic_pbc(M):
                          [[  ] [  ] [  ]]
      we simply try to guess b,c,d,e,f,g 
     """
-    ##M *= 2 # make it integer, will be /=2 at the end
-    assert is_integer(M)
+    # M is "half-integer" when using pc2fcc(). 
+    # BTW I'm not sure if pc2fcc() is working properly.
+    doubleM = not is_integer(M)
+    if doubleM:
+        M *= 2 # make it integer, will be /=2 at the end
+
+    assert is_integer(M), M
     M = M.round().astype(int)
 
     n = 10
     pbc = None
     max_sq = 0
     x, y, z = M
-    #detM = det(M)
 
     # We will try adding a multiple of one column to another. 
     # The column that is to be added can be multiplied by fractional number,
@@ -368,7 +403,9 @@ def find_orthorhombic_pbc(M):
     if pbc is None:
         print "No orthorhombic PBC found."
         sys.exit()
-    ##pbc /= 2.
+
+    if doubleM:
+        pbc /= 2.
 
     id = identity(3)
     if (pbc[1] == id[0]).all() or (pbc[0] == -id[1]).all():
@@ -420,22 +457,20 @@ def print_list(hkl, max_angle=45., limit=1000):
         print "sigma=%3i    theta=%5.2f     m=%3i    n=%3i" % i
 
 
-def print_details(hkl, sigma):
-    t = find_theta(hkl, sigma)
-    if t is None:
-        print "Not found."
-        return
-    theta, m, n = t
-    print "min. theta = %.3f  for m=%i, n=%i" % (degrees(theta), m, n)
+def print_details(hkl, m, n):
+    sigma = get_cubic_sigma(hkl, m, n)
+    theta = get_cubic_theta(hkl, m, n)
+    print "sigma=%d, theta=%.3f, m=%d, n=%d, axis=[%d,%d,%d]" % (
+            sigma, degrees(theta), m, n, hkl[0], hkl[1], hkl[2])
     R = rodrigues(hkl, theta)
     print
     print "R * sigma =\n%s" % (R * sigma)
     C = find_csl_matrix(sigma, R)
     print "CSL primitive cell (det=%s):\n%s" % (det(C), C)
-    # optional, for FCC
-    C = pc2fcc(C)
-    C = beautify_matrix(C)
-    print_matrix("CSL cell for fcc:", C)
+    ## optional, for FCC
+    #C = pc2fcc(C)
+    #C = beautify_matrix(C)
+    #print_matrix("CSL cell for fcc:", C)
 
     Cp = make_parallel_to_axis(C, col=2, axis=hkl)
     if (Cp != C).any():
@@ -446,16 +481,26 @@ def print_details(hkl, sigma):
 
 def main():
     argc = len(sys.argv)
-    if argc != 2 and argc != 3:
+    if argc < 2 or argc > 4:
         print usage_string
         return
-    assert len(sys.argv[1]) == 3
-    hkl = tuple([int(i) for i in sys.argv[1]])
+
+    hkl = parse_miller(sys.argv[1])
+
     if argc == 2:
         print_list(hkl)
-    else:
+    elif argc == 3:
         sigma = int(sys.argv[2])
-        print_details(hkl, sigma)
+        thetas = get_theta_m_n_list(hkl, sigma, verbose=False)
+        thetas.sort(key = lambda x: x[0])
+        for theta, m, n in thetas:
+            print "m=%2d  n=%2d %6.2f" % (m, n, degrees(theta))
+        if not thetas:
+            print "Not found."
+    elif argc == 4:
+        m = int(sys.argv[2])
+        n = int(sys.argv[3])
+        print_details(hkl, m, n)
 
 
 
