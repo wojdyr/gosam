@@ -376,14 +376,15 @@ class CuttedGrain(FreshModel):
     def show_in_geomview(self):
         # it ignores sphere surfaces
         t = self.export_for_qhull(with_spheres=False)
-        qh_output, qh_input = popen2('qhull H Fp | qhull G')  
+        p = Popen(["qhull H Fp | qhull G"], shell=True, bufsize=bufsize,
+                          stdin=PIPE, stdout=PIPE, close_fds=True)
         #  H - qhalf
         # Fp - print points at halfspace intersections
         #...and compute the convex hull of the intersection points for Geomview
         # G - display Geomview output
-        qh_input.write(t)
-        qh_input.close()
-        off_content = qh_output.read()
+        p.stdin.write(t)
+        p.stdin.close()
+        off_content = p.stdout.read()
         f = NamedTemporaryFile()
         #print "*" * 70
         #print off_content
@@ -399,11 +400,12 @@ class CuttedGrain(FreshModel):
     def get_vertices(self):
         "get vertices of convex hull that contains the grain"
         t = self.export_for_qhull(with_spheres=True)  
-        qh_output, qh_input = popen2('qhull H Fp')  
-        qh_input.write(t)
-        qh_input.close()
+        p = Popen(["qhull H Fp"], 
+                  shell=True, stdin=PIPE, stdout=PIPE, close_fds=True)
+        p.stdin.write(t)
+        p.stdin.close()
         return [[float(j) for j in i.split()] 
-                    for i in qh_output.readlines() if len(i.split()) == 3]
+                    for i in p.stdout.readlines() if len(i.split()) == 3]
 
 
     def generate_atoms(self):
