@@ -41,7 +41,7 @@ One of possible uses is as follows:
 __version__ = "2007-12-03"
 
 from math import cos, sin, acos, asin, sqrt, pi, floor, ceil, radians, degrees
-from popen2 import popen2
+from subprocess import Popen, PIPE
 from tempfile import NamedTemporaryFile
 import commands 
 import sys
