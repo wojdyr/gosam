@@ -281,26 +281,47 @@ class Model:
                 counter += 1
 
 
-    def output_all_removal2_possibilities(self, filename):
-        assert "%" in filename
-
-        distances2 = [0]
+    def _find_symmetric_z_distances(self):
+        distances = [0]
         for i in self.atoms:
             d = 2 * i.pos[2]
             if 1e-7 < d < 3.0:
-                distances2.append(d + 1e-6)
-        _sort_and_uniq(distances2)
-        print "same species distances:", distances2
+                distances.append(d + 1e-6)
+        _sort_and_uniq(distances)
+        print "same species distances:", distances
         print "atoms count:", len(self.atoms)
+        return distances
 
+    def output_all_removal2_possibilities(self, filename):
+        assert "%" in filename
+        distances = self._find_symmetric_z_distances()
         orig_atoms = self.atoms
-        for n, j in enumerate(distances2):
+        for n, j in enumerate(distances):
             self.atoms = [a for a in orig_atoms if not 1e-7 < a.pos[2] < j / 2.]
             ndel = len(orig_atoms) - len(self.atoms)
             self.title = "del %d atoms with cutoff: %g" % (ndel, j)
             print self.title
             fn = filename.replace('%', str(n))
             self.export_atoms(fn)
+
+
+    def output_all_possibilities_all_stoich(self, filename):
+        assert "%" in filename
+        distances = self._find_symmetric_z_distances()
+        orig_atoms = self.atoms
+        species = self.count_species()
+        assert len(species) == 2
+        name1, name2 = sorted(species.keys()) # C, Si
+        for n1, j1 in enumerate(distances):
+            for n2, j2 in enumerate(distances):
+                zmax = { name1: j1 / 2., name2: j2 / 2. }
+                self.atoms = [a for a in orig_atoms 
+                              if not 1e-7 < a.pos[2] < zmax[a.name]]
+                ndel = len(orig_atoms) - len(self.atoms)
+                self.title = "del %d atoms with cutoffs: %g, %g" % (ndel,j1,j2)
+                print self.title
+                fn = filename.replace('%', "%d-%d" % (n1, n2))
+                self.export_atoms(fn)
 
 
     def export_atoms(self, f, format=None):

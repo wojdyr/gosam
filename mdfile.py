@@ -185,7 +185,7 @@ def dlpoly_history_info(ifile):
             frame_counter += 1
     print "finished.", frame_counter, "frames were found."
 
-def get_stechiometry_string(configuration):
+def get_stoichiometry_string(configuration):
     counts = configuration.count_species()
     return "Stechiometry: " + " ".join("%s:%d" % i for i in counts.iteritems())
 
@@ -335,7 +335,7 @@ def get_comment_list(configuration):
     cc = ["file written by gosam (SVN $Revision$)", cmd]
     if configuration.title and configuration.title != cmd:
         cc.append(configuration.title)
-    cc.append(get_stechiometry_string(configuration))
+    cc.append(get_stoichiometry_string(configuration))
     return cc
 
 

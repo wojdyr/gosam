@@ -6,9 +6,11 @@ Coincidence Site Lattice related utilities.
 """
 usage_string = """\
  Usage: 
-   csl.py hkl         - list all CSL sigma up to 1000 with corresponding angle
-                         example: csl.py 100
-   csl.py hkl sigma   - details about CSL with given sigma
+  csl.py hkl [limit=M] - list all CSL sigmas up to limit (default=1000) 
+                         with corresponding angle
+                             examples: csl.py 100
+                                       csl.py 100 limit=50
+  csl.py hkl sigma     - details about CSL with given sigma
                          example: csl.py 111 31
 """
 
@@ -81,7 +83,7 @@ def get_theta_m_n_list(hkl, sigma, verbose=False):
                 continue
             theta = get_cubic_theta(hkl, m, n)
             if verbose:
-                print "m=%i n=%i" % (m, n), "%.2f" % degrees(theta)
+                print "m=%i n=%i" % (m, n), "%.3f" % degrees(theta)
             thetas.append((theta, m, n))
     return thetas
 
@@ -489,12 +491,14 @@ def main():
 
     if argc == 2:
         print_list(hkl)
+    elif argc == 3 and sys.argv[2].startswith("limit="):
+        print_list(hkl, limit=int(sys.argv[2][6:]))
     elif argc == 3:
         sigma = int(sys.argv[2])
         thetas = get_theta_m_n_list(hkl, sigma, verbose=False)
         thetas.sort(key = lambda x: x[0])
         for theta, m, n in thetas:
-            print "m=%2d  n=%2d %6.2f" % (m, n, degrees(theta))
+            print "m=%2d  n=%2d %7.3f" % (m, n, degrees(theta))
         if not thetas:
             print "Not found."
     elif argc == 4:

@@ -110,6 +110,7 @@ class BicrystalOptions:
         self.remove_dist = None
         self.remove_dist2 = None
         self.all = None
+        self.allall = None
         self.lattice_name = "sic"
         self.lattice_shift = None
 
@@ -207,8 +208,11 @@ def parse_args():
             assert opts.mono2 is None
             opts.mono2 = True
         elif i == "all":
-            assert opts.all is None
+            assert opts.all is None and opts.allall is None
             opts.all = True
+        elif i == "allall":
+            assert opts.allall is None and opts.all is None
+            opts.allall = True
         elif i.startswith("remove:"):
             assert opts.remove_dist is None
             opts.remove_dist = float(i[7:])
@@ -332,6 +336,10 @@ def main():
     if opts.all:
         #config.output_all_removal_possibilities(opts.output_filename)
         config.output_all_removal2_possibilities(opts.output_filename)
+        return
+
+    if opts.allall:
+        config.output_all_possibilities_all_stoich(opts.output_filename)
         return
 
     config.export_atoms(opts.output_filename)

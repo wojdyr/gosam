@@ -44,7 +44,8 @@ def make_simple_cubic_lattice():
 def make_sic_lattice():
     print "---> Preparing Cubic SiC"
     #cell = graingen.CubicUnitCell(4.3581) # 4.3596 4.36
-    cell = graingen.CubicUnitCell(4.32119155) # value from Tersoff '89 / should be 4.321059889
+    cell = graingen.CubicUnitCell(4.3210368) # value for Tersoff '89 
+    
 
     # nodes in unit cell (as fraction of unit cell parameters)
     node_pos = fcc_node_pos[:]

@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # this file is part of gosam (generator of simple atomistic models) 
 # Licence: GNU General Public License version 2
+# $Id:$
 """
 Module for geometrical modelling of crystal grain.  
 
@@ -37,8 +38,6 @@ One of possible uses is as follows:
 
 10  Write output 
 """
-
-__version__ = "2007-12-03"
 
 from math import cos, sin, acos, asin, sqrt, pi, floor, ceil, radians, degrees
 from subprocess import Popen, PIPE
