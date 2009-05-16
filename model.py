@@ -1,4 +1,4 @@
-# this file is part of gosam (generator of simple atomistic models) 
+# this file is part of gosam (generator of simple atomistic models)
 # Licence: GNU General Public License version 2
 """\
 class Model -- atomistic model, optionally in PBC -- vacancies,
@@ -31,7 +31,7 @@ class Model:
     """Configuration -- atoms, PBC (only parallelepiped)"""
     def __init__(self, atoms, pbc, title="", comments=None):
         self.atoms = atoms
-        self.pbc = pbc 
+        self.pbc = pbc
         self.title = title
         self.comments = comments
 
@@ -97,7 +97,7 @@ class Model:
 
 
     def print_coordination_statistics(self, max_bondlength):
-        print "Coordination statistics: ", 
+        print "Coordination statistics: ",
         sys.stdout.flush()
         stat = {}
         #for i in self.atoms:
@@ -113,7 +113,7 @@ class Model:
 
 
     def print_stochiometry(self):
-        print "Stochiometry: ", 
+        print "Stochiometry: ",
         stat = {}
         for i in self.atoms:
             if i.name in stat:
@@ -126,11 +126,11 @@ class Model:
 
 
     def remove_undercoordinated_atoms(self, max_bondlength):
-        """Remove atoms that have only 1 nearest neighbor 
+        """Remove atoms that have only 1 nearest neighbor
         and some with 2 nearest neighbors (stoichiometry is conserved).
         For use in tetrahedrally coordinated lattices.
         """
-        print "Removing under-coordinated atoms..." 
+        print "Removing under-coordinated atoms..."
         before = len(self.atoms)
         for iter in range(2):
             cm = mdprim.CellMethod(self.atoms, max_bondlength)
@@ -164,11 +164,11 @@ class Model:
 
 
     def _shift_before_removing(self, to_be_deleted):
-        """if only pairs of atoms of the same species are too close 
+        """if only pairs of atoms of the same species are too close
            to each other, move the atom that won't be deleted to the position
            between it's old position and the position of the neighbour.
         """
-        pbc = self.pbc.diagonal() 
+        pbc = self.pbc.diagonal()
         for k, v in to_be_deleted.iteritems():
             assert len(v) == 1, "%s %s" % (k, v)
             assert v[0] not in to_be_deleted, "%s" % v[0]
@@ -266,7 +266,7 @@ class Model:
             for i in distances1:
                 #if j <= i:
                 #    continue
-                rm = [a.nr for a in orig_atoms if (a.r1 and a.r1 < i) 
+                rm = [a.nr for a in orig_atoms if (a.r1 and a.r1 < i)
                                                    or (a.r2 and a.r2 < j)]
                 if rm in all_rm:
                     print "ignore cutoffs: %g, %g (%d atoms)" % (i, j, len(rm))
@@ -315,7 +315,7 @@ class Model:
         for n1, j1 in enumerate(distances):
             for n2, j2 in enumerate(distances):
                 zmax = { name1: j1 / 2., name2: j2 / 2. }
-                self.atoms = [a for a in orig_atoms 
+                self.atoms = [a for a in orig_atoms
                               if not 1e-7 < a.pos[2] < zmax[a.name]]
                 ndel = len(orig_atoms) - len(self.atoms)
                 self.title = "del %d atoms with cutoffs: %g, %g" % (ndel,j1,j2)
@@ -326,7 +326,7 @@ class Model:
 
     def export_atoms(self, f, format=None):
         """
-        save atoms to file f in one of possible formats 
+        save atoms to file f in one of possible formats
         """
         if type(f) in (str, unicode):
             f = mdfile.open_any(f, 'w')

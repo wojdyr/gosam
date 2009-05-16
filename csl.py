@@ -1,12 +1,12 @@
 #!/usr/bin/env python
-# this file is part of gosam (generator of simple atomistic models) 
+# this file is part of gosam (generator of simple atomistic models)
 # Licence: GNU General Public License version 2
 """\
 Coincidence Site Lattice related utilities.
 """
 usage_string = """\
- Usage: 
-  csl.py hkl [limit=M] - list all CSL sigmas up to limit (default=1000) 
+ Usage:
+  csl.py hkl [limit=M] - list all CSL sigmas up to limit (default=1000)
                          with corresponding angle
                              examples: csl.py 100
                                        csl.py 100 limit=50
@@ -102,14 +102,14 @@ def _get_unimodular_transformation():
     yield array([[1, 0, 1],
                 [0, 1, 0],
                 [0, 1, 1]])
-    yield array([[1, 0, 1], 
-                [0, 1, 0], 
+    yield array([[1, 0, 1],
+                [0, 1, 0],
                 [0, 1, -1]])
-    yield array([[1, 0, 1], 
-                [0, 1, 0], 
+    yield array([[1, 0, 1],
+                [0, 1, 0],
                 [-1,1, 0]])
-    yield array([[1, 0, 1], 
-                 [1, 1, 0], 
+    yield array([[1, 0, 1],
+                 [1, 1, 0],
                  [1, 1, 1]])
 
 
@@ -126,7 +126,7 @@ def _get_S():
 
 
 def transpose_3x3(f):
-    """decorator; transpose the first argument and the return value (both 
+    """decorator; transpose the first argument and the return value (both
     should be 3x3 arrays). This makes column operations easier"""
     @functools.wraps(f)
     def wrapper(*args, **kwds):
@@ -141,8 +141,8 @@ def transpose_3x3(f):
 
 @transpose_3x3
 def beautify_matrix(T):
-    # We don't want to change the lattice. 
-    # We use only elementary column operations that don't change det 
+    # We don't want to change the lattice.
+    # We use only elementary column operations that don't change det
     def looks_better(a, b):
         x = numpy.abs(a)
         y = numpy.abs(b)
@@ -165,7 +165,7 @@ def beautify_matrix(T):
         for i in range(3):
             for j in range(3):
                 if i != j and not changed:
-                    changed = try_add_sub(T[i], T[j]) 
+                    changed = try_add_sub(T[i], T[j])
                     if changed:
                         break
         if not changed:
@@ -182,9 +182,9 @@ def make_parallel_to_axis(T, col, axis):
     return value:
        matrix T is transformed using operations:
          - interchanging two columns
-         - adding a multiple of one column to another, 
+         - adding a multiple of one column to another,
          - multiplying column by -1
-       such that the result matrix has the same det 
+       such that the result matrix has the same det
                                 and has first vector == axis
        the transformation is _not_ rotation
     """
@@ -213,7 +213,7 @@ def make_parallel_to_axis(T, col, axis):
 
     T[col] = dot(c,T)
 
-    if c[col] < 0: # sign of det was changed, change it again 
+    if c[col] < 0: # sign of det was changed, change it again
         T[1] *= -1
 
     if double_T:
@@ -287,7 +287,7 @@ def make_csl_from_0_lattice(T, n):
 
 def find_csl_matrix(sigma, R):
     """\
-    Find matrix that determines the coincidence site lattice 
+    Find matrix that determines the coincidence site lattice
     for cubic structures.
     Parameters:
         sigma: CSL sigma
@@ -310,7 +310,7 @@ def find_csl_matrix(sigma, R):
         Tp = identity(3) - dot(U, Rs)
         if abs(det(Tp)) > 1e-6:
             found = True
-            print "Unimodular transformation used:\n%s" % U 
+            print "Unimodular transformation used:\n%s" % U
             break
     if not found:
         print "Error. Try another unimodular transformation U to calculate T'"
@@ -325,7 +325,7 @@ def find_csl_matrix(sigma, R):
     assert is_integer(csl)
     csl = csl.round().astype(int)
     return beautify_matrix(csl)
-    
+
 
 def plus_minus_gen(n):
     for i in xrange(1, n):
@@ -342,17 +342,17 @@ def zero_plus_minus_gen(n):
 def find_orthorhombic_pbc(M):
     """\
      we don't change the last axis (!!!)
-     vectors: 
+     vectors:
          z2 = z
          x2 = b x + d y + e z
          y2 = c y + f x + g z
      the new matrix is:
-                         [[x2] [y2] [z2]] 
+                         [[x2] [y2] [z2]]
                          [[  ] [  ] [  ]]
                          [[  ] [  ] [  ]]
-     we simply try to guess b,c,d,e,f,g 
+     we simply try to guess b,c,d,e,f,g
     """
-    # M is "half-integer" when using pc2fcc(). 
+    # M is "half-integer" when using pc2fcc().
     # BTW I'm not sure if pc2fcc() is working properly.
     doubleM = not is_integer(M)
     if doubleM:
@@ -366,7 +366,7 @@ def find_orthorhombic_pbc(M):
     max_sq = 0
     x, y, z = M
 
-    # We will try adding a multiple of one column to another. 
+    # We will try adding a multiple of one column to another.
     # The column that is to be added can be multiplied by fractional number,
     # if the result is still integral
     x_ = x / gcd_array(x)
@@ -385,7 +385,7 @@ def find_orthorhombic_pbc(M):
         for d in zero_plus_minus_gen(n):
             e_ = - (mxz[0] * b + mxz[1] * d) / float(mxz[2])
             e = int(round(e_))
-            if abs(e - e_) < 1e-7: 
+            if abs(e - e_) < 1e-7:
                 x2 = dot([b,d,e], Mx)
                 for c in plus_minus_gen(n):
                     # instead of iteration, f can be calculated by solving
@@ -396,7 +396,7 @@ def find_orthorhombic_pbc(M):
                         if abs(g - g_) < 1e-7:
                             y2 = dot([f,c,g], My)
                             if inner(x2, y2) == 0:
-                                max_sq_ = max(dot(x2,x2), dot(y2,y2), 
+                                max_sq_ = max(dot(x2,x2), dot(y2,y2),
                                               dot(z2,z2))
                                 #print "#", max_sq_,
                                 if pbc is None or max_sq_ < max_sq:

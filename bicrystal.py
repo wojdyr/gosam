@@ -1,12 +1,12 @@
 #!/usr/bin/env python
-# this file is part of gosam (generator of simple atomistic models) 
+# this file is part of gosam (generator of simple atomistic models)
 # Licence: GNU General Public License version 2
 """\
 tool for generating bicrystals
 """
 
 usage = """\
-Usage: 
+Usage:
    bicrystal.py axis plane sigma dim_x dim_y dim_z [options] output_file
 
  - axis of rotation should be given as three numbers, e.g.: "001", "111"
@@ -17,29 +17,29 @@ Usage:
            * miller indices prefixed with letter m (e.g. m011) meaning
              median plane; the boundary will be calculated as the median plane
              rotated by theta/2 around the axis.
-             
+
  - instead of sigma (one number) you can give:
    * m,n (e.g. 23,4)
    * theta=value, i.e. value of angle in degrees (e.g. theta=90)
  - dim_x, dim_y and dim_z are in nm
  - options:
-   * nofit - if this option is _not_ specified, PBC dimensions will be tuned 
-             to make the system periodic 
+   * nofit - if this option is _not_ specified, PBC dimensions will be tuned
+             to make the system periodic
    * mono1 - generate only upper half of the bicrystal, i.e. monocrystal
    * mono2 - generate only bottom half of the bicrystal, i.e. monocrystal
-   * remove:dist - If there are two atoms in distance < dist [Angstroms], 
-             one of the atoms is removed. 
+   * remove:dist - If there are two atoms in distance < dist [Angstroms],
+             one of the atoms is removed.
    * remove2:dist - for binary systems only; like the option above, but only
              pairs of atoms of the same species are checked.
    * vacuum:length - vacuum in z direction. Makes 2D slab with z dimension
              increased by the length.
-   * shift:dx,dy,dz - shift nodes in unit cell. 
-   * lattice:name - e.g. sic 
+   * shift:dx,dy,dz - shift nodes in unit cell.
+   * lattice:name - e.g. sic
 
 Examples:
-    bicrystal.py 001 twist 5 20 20 80 twist_s5.cfg 
-    bicrystal.py 100 013 5 20 20 80 tilt_s5.cfg 
-    bicrystal.py 100 m011 5 20 20 80 tilt_s5.cfg 
+    bicrystal.py 001 twist 5 20 20 80 twist_s5.cfg
+    bicrystal.py 100 013 5 20 20 80 tilt_s5.cfg
+    bicrystal.py 100 m011 5 20 20 80 tilt_s5.cfg
 
 caution: the program was tested only for a few cases (may not work in others)
 """
@@ -78,7 +78,7 @@ class Bicrystal(OrthorhombicPbcModel):
         #print "Bicrystal.generate_atoms"
         self.atoms = (self.mono_u.generate_atoms(upper=True, z_margin=z_margin)
                   + self.mono_b.generate_atoms(upper=False, z_margin=z_margin))
-        print "Number of atoms in bicrystal: %i" % len(self.atoms) 
+        print "Number of atoms in bicrystal: %i" % len(self.atoms)
         self.print_boundary_angle()
 
     def print_boundary_angle(self):
@@ -153,13 +153,13 @@ class BicrystalOptions:
             dim[2] *= 2
         fit_dim = []
         if self.fit:
-            fit_dim += [0, 1] 
+            fit_dim += [0, 1]
             if self.zfit:
                 fit_dim += [2]
         for i in fit_dim:
             mult = ceil(float(dim[i]) / min_dim[i]) or 1
             dim[i] = mult * min_dim[i]
-            # dim[i] = round_to_multiplicity(min_dim[i], dim[i]) 
+            # dim[i] = round_to_multiplicity(min_dim[i], dim[i])
         if self.vacuum:
             dim[2] += self.vacuum # margin in dim z
         print "-------> dimensions [A]: ", dim[0], dim[1], dim[2]
@@ -251,14 +251,14 @@ def main():
     opts = parse_args()
 
     # R is a matrix that transforms lattice in the bottom monocrystal
-    # to lattice in the upper monocrystal 
+    # to lattice in the upper monocrystal
     R = rodrigues(opts.axis, opts.theta)
 
     if opts.sigma:
         # C is CSL primitive cell
         C = csl.find_csl_matrix(opts.sigma, R)
         print_matrix("CSL primitive cell", C)
-        
+
         ## and now we determine CSL for fcc lattice
         #C = csl.pc2fcc(C)
         #C = csl.beautify_matrix(C)
@@ -267,7 +267,7 @@ def main():
         C = identity(3)
 
     # CSL-lattice must be periodic is our system.
-    # * PBC box must be orthonormal 
+    # * PBC box must be orthonormal
     # * boundaries must be perpendicular to z axis of PBC box
 
     Cp = csl.make_parallel_to_axis(C, col=2, axis=opts.plane)
@@ -294,12 +294,12 @@ def main():
     #min_dim[1] /= 2.
     opts.find_dim([i * a for i in min_dim])
 
-    #rot_mat1 = rodrigues(opts.axis, rot1) 
-    #rot_mat2 = rodrigues(opts.axis, rot2) 
+    #rot_mat1 = rodrigues(opts.axis, rot1)
+    #rot_mat2 = rodrigues(opts.axis, rot2)
     rot_mat1 = dot(linalg.inv(R), invrot)
     rot_mat2 = invrot
-    #print "rot1", rot_mat1 
-    #print "rot2", rot_mat2 
+    #print "rot1", rot_mat1
+    #print "rot2", rot_mat2
 
     title = get_command_line()
     if opts.mono1:
@@ -351,12 +351,12 @@ def main():
 #        for i in range(3):
 #            v[i] = random.random()
 #    theta = random.uniform(0, pi)
-#    rot_mat = rodrigues(v, theta) 
+#    rot_mat = rodrigues(v, theta)
 #    return rot_mat
 #
 #
 ## outdated
-#def random_bicrystal(): 
+#def random_bicrystal():
 #    lattice = make_default_lattice()
 #    dim = [100, 100, 200]
 #    rot1 = get_random_rotation()

@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# this file is part of gosam (generator of simple atomistic models) 
+# this file is part of gosam (generator of simple atomistic models)
 # Licence: GNU General Public License version 2
 """
 File import/export.
@@ -16,12 +16,12 @@ Supported file types (some of them are supported partially):
 import sys
 import operator
 from optparse import OptionParser
-import bz2 
+import bz2
 import numpy
 from numpy import linalg
 
 from mdprim import AtomVF
-import model 
+import model
 import pse
 from utils import get_command_line
 from rotmat import is_diagonal, StdDev
@@ -29,7 +29,7 @@ from rotmat import is_diagonal, StdDev
 
 def get_orthorhombic_pbc(full_pbc):
     """\
-    the input is matrix 3x3, the output is diagonal. 
+    the input is matrix 3x3, the output is diagonal.
     Non-diagonal elements must be zero.
     """
     if full_pbc is None or len(full_pbc) == 0:
@@ -40,8 +40,8 @@ def get_orthorhombic_pbc(full_pbc):
 
 def export_for_dlpoly(atoms, f, title, sort=True):
     levcfg = 0 #only coordinates in file
-    #imcon = 0 #no periodic boundaries 
-    imcon = 1 #cubic periodic boundaries 
+    #imcon = 0 #no periodic boundaries
+    imcon = 1 #cubic periodic boundaries
     a = 200.
     with_shells = False
     print >>f, title
@@ -65,7 +65,7 @@ def export_for_dlpoly(atoms, f, title, sort=True):
             print >>f, "%-8s%20i" % (atm.name + "-shl", counter)
             print >>f, "%20f%20f%20f" % (atm.pos[0], atm.pos[1], atm.pos[2])
 
-    # gather data useful for FIELD file 
+    # gather data useful for FIELD file
     atom_counts = {}
     for i in ordered:
         if i.name not in atom_counts:
@@ -79,13 +79,13 @@ def export_as_xmol(atoms, f, title):
     print >>f, len(atoms)
     print >>f, title
     for point in atoms:
-        print >>f, point.name, point.pos[0], point.pos[1], point.pos[2] 
+        print >>f, point.name, point.pos[0], point.pos[1], point.pos[2]
 
 
 def export_for_pielaszek(atoms, f):
     "the simplest format, used sometimes here in Unipress"
     for point in atoms:
-        print >>f, point.pos[0], point.pos[1], point.pos[2], point.name 
+        print >>f, point.pos[0], point.pos[1], point.pos[2], point.name
 
 
 def import_pielaszek(ifile):
@@ -111,7 +111,7 @@ def import_xmol(ifile):
 
 def import_dlpoly_config(ifile):
     title = ifile.readline().strip()
-    second_line = ifile.readline().split() 
+    second_line = ifile.readline().split()
     levcfg = int(second_line[0])
     imcon = int(second_line[1])
     return _get_dlpoly_configuration(ifile, title, levcfg, imcon)[0]
@@ -150,7 +150,7 @@ def _get_dlpoly_configuration(ifile, title, levcfg, imcon):
 
 def import_dlpoly_history(ifile):
     title = ifile.readline().strip()
-    second_line = ifile.readline().split() 
+    second_line = ifile.readline().split()
     levcfg = int(second_line[0])
     imcon = int(second_line[1])
     all_configurations = []
@@ -171,7 +171,7 @@ def import_dlpoly_history(ifile):
 def dlpoly_history_info(ifile):
     title = ifile.readline().strip()
     print "title:", title
-    second_line = ifile.readline().split() 
+    second_line = ifile.readline().split()
     print "number of atoms in frame:", second_line[2]
     print "has following frames:",
     frame_counter = 0
@@ -179,7 +179,7 @@ def dlpoly_history_info(ifile):
         line = ifile.readline()
         if not line:
             break
-        if line.startswith("timestep"): 
+        if line.startswith("timestep"):
             print line.split()[1],
             sys.stdout.flush()
             frame_counter += 1
@@ -197,12 +197,12 @@ def export_for_atomeye(configuration, f, aux=None):
     aux_fun = {
             "temperature [K]": (lambda i: i.get_temperature())
             }
-    pbc = configuration.pbc 
+    pbc = configuration.pbc
     if pbc is None or len(pbc) == 0:
         raise ValueError("no PBC")
     if not isinstance(pbc, numpy.ndarray):
         pbc = numpy.array(pbc)
-    print >>f, "Number of particles = %i" % len(configuration.atoms) 
+    print >>f, "Number of particles = %i" % len(configuration.atoms)
     for i in get_comment_list(configuration):
         print >>f, "# " + i
     print >>f, "A = 1.0 Angstrom (basic length-scale)"
@@ -215,11 +215,11 @@ def export_for_atomeye(configuration, f, aux=None):
     print >>f, "entry_count = %i" % entry_count
     for n, aux_name in enumerate(aux):
         print >>f, "auxiliary[%i] = %s" % (n, "temperature [K]")
-    H_1 = linalg.inv(pbc) 
+    H_1 = linalg.inv(pbc)
     previous_name = None
     for i in configuration.atoms:
         if previous_name != i.name:
-            print >>f, pse.get_atom_mass(i.name) 
+            print >>f, pse.get_atom_mass(i.name)
             print >>f, i.name
             previous_name = i.name
         s = numpy.dot(i.pos, H_1) % 1.0
@@ -267,14 +267,14 @@ def import_atomeye(ifile):
             if has_velocity:
                 vel = (float(s[3]), float(s[4]), float(s[5]))
                 # if velocities are also reduced:
-                #vel = numpy.dot(vel, H) 
+                #vel = numpy.dot(vel, H)
             atoms.append(AtomVF(spec, len(atoms), pos, vel, None))
     return model.Model(atoms, pbc=pbc, title="from cfg", comments=comments)
 
 
 # This file format doesn't contain atom names, only numbers of atom types.
 # The names corresponding to the numbers are in separate lammps file.
-# Here we assume that names of the types follow the line "n atom types" 
+# Here we assume that names of the types follow the line "n atom types"
 # as comments, e.g.: "2 atom types # C Si"
 def import_lammps_data(ifile):
     pbc = [[0,0,0], [0,0,0], [0,0,0]]
@@ -310,14 +310,14 @@ def import_lammps_data(ifile):
             lo, hi = line.split()[0:2]
             length = float(hi) - float(lo)
             pbc[2][2] = length
-        elif line == "Atoms": 
+        elif line == "Atoms":
             break
         else:
             assert 0
 
     atoms = []
     while len(atoms) < number_of_atoms:
-        s = ifile.readline().split() 
+        s = ifile.readline().split()
         if len(s) < 5:
             continue
         n = int(s[0])
@@ -327,7 +327,7 @@ def import_lammps_data(ifile):
         pos = float(s[2]), float(s[3]), float(s[4])
         atoms.append(AtomVF(name, len(atoms), pos, vel=None, force=None))
 
-    return model.Model(atoms, pbc=pbc, title="from lammps data", 
+    return model.Model(atoms, pbc=pbc, title="from lammps data",
                        comments=comments)
 
 def get_comment_list(configuration):
@@ -347,7 +347,7 @@ def export_as_lammps(configuration, f):
     print >>f
     counts = configuration.count_species()
     species = sorted(counts.keys())
-    print >>f, "\n%d\tatoms" % len(configuration.atoms) 
+    print >>f, "\n%d\tatoms" % len(configuration.atoms)
     print >>f, "%d atom types # %s" % (len(species), " ".join(species))
     spmap = dict((i, n+1) for n, i in enumerate(species))
     print >>f, "0 %.6f xlo xhi" % ort_pbc[0]
@@ -355,14 +355,14 @@ def export_as_lammps(configuration, f):
     print >>f, "0 %.6f zlo zhi" % ort_pbc[2]
     print >>f, "\nAtoms\n"
     for n, i in enumerate(configuration.atoms):
-        print >>f, "%d\t%d\t%.7f\t%.7f\t%.7f" % (n+1, spmap[i.name], 
+        print >>f, "%d\t%d\t%.7f\t%.7f\t%.7f" % (n+1, spmap[i.name],
                                            i.pos[0], i.pos[1], i.pos[2])
 
 
 def export_as_poscar(configuration, f):
     "exporting coordinates as VASP POSCAR file"
     # line 1: a comment (should be name of the system)
-    print >>f, configuration.title 
+    print >>f, configuration.title
     # line 2: scaling factor
     print >>f, "1.0"
     # line 3, 4, 5: the unit cell of the system
@@ -385,7 +385,7 @@ def export_as_poscar(configuration, f):
     print >>f, "Direct"
 
     # line 8, ...: atom coordinates
-    H_1 = linalg.inv(configuration.pbc) 
+    H_1 = linalg.inv(configuration.pbc)
     for sp in species:
         for i in configuration.atoms:
             if i.name == sp:
@@ -446,7 +446,7 @@ def export_as_gulp(configuration, f):
     print >>f, "%.6g %.6g %.6g %g %g %g" % (pbc[0], pbc[1], pbc[2],
                                             90., 90., 90.)
     print >>f, "fractional"
-    H_1 = linalg.inv(configuration.pbc) 
+    H_1 = linalg.inv(configuration.pbc)
     for i in configuration.atoms:
         s = numpy.dot(i.pos, H_1) % 1.0
         print >>f, "%s   core %11.6g %11.6g %11.6g    0.0000000  1.0000000" % (
@@ -544,8 +544,8 @@ def process_input(input_filename, options):
         pbc = numpy.diagonal(configuration.pbc)
         for n, a1 in enumerate(configuration.atoms):
             a0 = cref.atoms[n]
-            a1.dpos = [a1.pos[0] - a0.pos[0], 
-                       a1.pos[1] - a0.pos[1], 
+            a1.dpos = [a1.pos[0] - a0.pos[0],
+                       a1.pos[1] - a0.pos[1],
                        a1.pos[2] - a0.pos[2]]
             for i in range(3):
                 if a1.dpos[i] > pbc[i] / 2.:
@@ -569,7 +569,7 @@ def process_input(input_filename, options):
     return configuration
 
 def convert(argv):
-    "converts atomistic files" 
+    "converts atomistic files"
     options, args = parse_options(argv)
     configuration = process_input(args[0], options)
     output_filename = args[1]
@@ -614,7 +614,7 @@ def avg_plot(argv):
     print "n=%d, x E <%g,%g)" % (len(xy), minx, maxx)
     for n, yf in enumerate(yfuncs):
         miny = min(i[n+1] for i in xy)
-        maxy = max(i[n+1] for i in xy) 
+        maxy = max(i[n+1] for i in xy)
         avgy = sum(i[n+1] for i in xy) / len(xy)
         print "%s E <%g, %g>, avg: %g" % (yf.__name__, miny, maxy, avgy)
 

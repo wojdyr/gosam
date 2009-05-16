@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# this file is part of gosam (generator of simple atomistic models) 
+# this file is part of gosam (generator of simple atomistic models)
 # Licence: GNU General Public License version 2
 
 import sys
@@ -19,7 +19,7 @@ fcc_node_pos = [
     (0.5, 0.5, 0.0),
     (0.0, 0.5, 0.5),
     (0.5, 0.0, 0.5),
-] 
+]
 
 def get_diamond_node_pos():
     node_pos = []
@@ -44,8 +44,8 @@ def make_simple_cubic_lattice():
 def make_sic_lattice():
     print "---> Preparing Cubic SiC"
     #cell = graingen.CubicUnitCell(4.3581) # 4.3596 4.36
-    cell = graingen.CubicUnitCell(4.3210368) # value for Tersoff '89 
-    
+    cell = graingen.CubicUnitCell(4.3210368) # value for Tersoff '89
+
 
     # nodes in unit cell (as fraction of unit cell parameters)
     node_pos = fcc_node_pos[:]
@@ -53,7 +53,7 @@ def make_sic_lattice():
     # atoms in node (as fraction of unit cell parameters)
     node_atoms = [
         ("Si", 0.0, 0.0, 0.0),
-        ("C",  0.25,0.25,0.25), 
+        ("C",  0.25,0.25,0.25),
     ]
     return make_lattice(cell, node_pos, node_atoms)
 
@@ -68,7 +68,7 @@ def make_sic_polytype_lattice(polytype="AB"):
     #atoms in node (as fraction of (a,a,h) parameters)
     node_atoms = [
         ("Si", 0.0, 0.0, 0.0),
-        ("C",  0.0, 0.0, 0.75 / len(polytype)), 
+        ("C",  0.0, 0.0, 0.75 / len(polytype)),
     ]
     return make_lattice(cell, nodes, node_atoms)
 
@@ -83,11 +83,11 @@ def make_si_lattice():
 
 class OrthorhombicPbcModel(graingen.FreshModel):
     def __init__(self, lattice, dimensions, title):
-        pbc = identity(3) * dimensions 
+        pbc = identity(3) * dimensions
         graingen.FreshModel.__init__(self, lattice, pbc, title=title)
 
     def get_vertices(self):
-        return [(x, y, z) for x in self._min_max[0] 
+        return [(x, y, z) for x in self._min_max[0]
                           for y in self._min_max[1]
                           for z in self._min_max[2]]
 
@@ -122,7 +122,7 @@ class RotatedMonocrystal(OrthorhombicPbcModel):
             self.unit_cell.rotate(self.rot_mat)
         self._do_gen_atoms(vmin, vmax)
         if upper is None:
-            print "Number of atoms in monocrystal: %i" % len(self.atoms) 
+            print "Number of atoms in monocrystal: %i" % len(self.atoms)
         return self.atoms
 
     def get_box_to_fill(self, dim, upper, z_margin):
@@ -144,7 +144,7 @@ class RotatedMonocrystal(OrthorhombicPbcModel):
 
 
 # primitive adjusting of PBC box for [010] rotation
-def test_rotmono_adjust():    
+def test_rotmono_adjust():
     lattice = make_sic_lattice()
     a = lattice.unit_cell.a
     dimensions = [10*a, 10*a, 10*a]
@@ -162,7 +162,7 @@ def test_rotmono_adjust():
     dimensions[1] = round(dimensions[1] / a) * a
     theta = new_th
 
-    rot_mat = graingen.rodrigues((0,1,0), theta, verbose=False) 
+    rot_mat = graingen.rodrigues((0,1,0), theta, verbose=False)
     config = RotatedMonocrystal(lattice, dimensions, rot_mat)
     config.generate_atoms()
     config.export_atoms("monotest.cfg", format="atomeye")
@@ -195,10 +195,10 @@ def get_named_lattice(name):
     return lattice
 
 
-usage = """Usage: 
+usage = """Usage:
 monocryst.py crystal nx ny nz filename
- where crystal is one of "si", "sic", "sic:ABABC". 
-  In the last case any polytype can be given" 
+ where crystal is one of "si", "sic", "sic:ABABC".
+  In the last case any polytype can be given"
 """
 
 
@@ -208,7 +208,7 @@ def main():
         sys.exit()
 
     lattice = get_named_lattice(name)
-    nx, ny, nz = float(sys.argv[2]), float(sys.argv[3]), float(sys.argv[4]) 
+    nx, ny, nz = float(sys.argv[2]), float(sys.argv[3]), float(sys.argv[4])
     mono(lattice, nx, ny, nz, output_filename=sys.argv[5])
 
 

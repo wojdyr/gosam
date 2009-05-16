@@ -1,9 +1,9 @@
 #!/usr/bin/env python
-# this file is part of gosam (generator of simple atomistic models) 
+# this file is part of gosam (generator of simple atomistic models)
 # Licence: GNU General Public License version 2
 # $Id:$
 """
-Module for geometrical modelling of crystal grain.  
+Module for geometrical modelling of crystal grain.
 
 One of possible uses is as follows:
 
@@ -14,15 +14,15 @@ One of possible uses is as follows:
 
 3  Define atom positions in unit cell (nodes in cell * atoms in node)
 
-4  Define grain surfaces and pressures - set of planes, 
-    each defined by (hkl) and r - distance from origin, 
-    and, optionally, distance D_shell and function emulating pressure 
+4  Define grain surfaces and pressures - set of planes,
+    each defined by (hkl) and r - distance from origin,
+    and, optionally, distance D_shell and function emulating pressure
      (changing position) if distance from atom to plane is smaller then D_shell
 
 5 Compute parameters of normal plane equations of surfaces.
 
 6  Get min/max value along a,b and c axes
-     this step includes computing halfspace intersection about a point 
+     this step includes computing halfspace intersection about a point
      (using qhull program) - it should give all vertices.
 
 7  (optional) Show shape of grain using Geomview.
@@ -36,13 +36,13 @@ One of possible uses is as follows:
 
 9  (optional) Modify atom position (eg. to simulate thermal vibation)
 
-10  Write output 
+10  Write output
 """
 
 from math import cos, sin, acos, asin, sqrt, pi, floor, ceil, radians, degrees
 from subprocess import Popen, PIPE
 from tempfile import NamedTemporaryFile
-import commands 
+import commands
 import sys
 from numpy import array, zeros, dot, sometrue, inner, cross
 # file formats
@@ -115,7 +115,7 @@ class Plane:
     def _compute_angles_from_ABCD(self):
         A,B,C,D = self.A, self.B, self.C, self.D
         mi = 1./sqrt(A**2 + B**2 + C**2)
-        if D>0: 
+        if D>0:
             mi = -mi
         self.alpha = acos(A*mi)
         self.beta = acos(B*mi)
@@ -126,8 +126,8 @@ class Plane:
 
     def _set_distance_from_0(self, dist):
         "changes parameters of plane - the new plane is parallel to old"
-        if not self.initialized: 
-            raise NotInitializedError(None) 
+        if not self.initialized:
+            raise NotInitializedError(None)
         assert dist > 0
         self.p = dist
         self._compute_ABCD_from_angles()
@@ -135,7 +135,7 @@ class Plane:
 
     def get_distance_from_point(self, P):
         "computes distance of plane from point"
-        return P * self.cosines - self.p 
+        return P * self.cosines - self.p
 
 
     def set_as_3points(self, p1, p2, p3):
@@ -155,18 +155,18 @@ class Plane:
         self.D = - _D
         self.initialized = True
         self._compute_angles_from_ABCD()
-        
+
 
     def describe_ABCD(self):
         if not self.initialized: return "Plane not initialized"
-        return "Plane: %s x + %s y + %s z + %s = 0. " % (self.A, self.B, 
-                                                         self.C, self.D) 
+        return "Plane: %s x + %s y + %s z + %s = 0. " % (self.A, self.B,
+                                                         self.C, self.D)
 
     def describe_angles(self):
         if not self.initialized: return "Plane not initialized"
         return "Plane: x cos(alpha) + y cos(beta) + z cos(gamma) - p = 0. \n" \
-                "alpha=%s  beta=%s  gamma=%s  p=%s" % (self.alpha, self.beta, 
-                                                       self.gamma, self.p) 
+                "alpha=%s  beta=%s  gamma=%s  p=%s" % (self.alpha, self.beta,
+                                                       self.gamma, self.p)
 
     def get_normal_vector(self):
         assert self.initialized
@@ -197,7 +197,7 @@ class LatticePlane(Plane):
 
     def set_hkld(self, hkl, r):
         "define plane using hkl indices and distance from (0,0,0)"
-        if hkl is None: 
+        if hkl is None:
             self.hkl = None
             self.r = r
             return
@@ -218,11 +218,11 @@ class LatticePlane(Plane):
         if not hasattr(self, "cell") or self.cell is None \
                 or not hasattr(self, "hkl") or self.hkl is None:
             return
-        #FIXME is there a better way to compute geometrical coordinates 
+        #FIXME is there a better way to compute geometrical coordinates
         # of plane? Now this method finds 3 points on plane, ...
         points = []
         for i, index in enumerate(self.hkl):
-            if index: 
+            if index:
                 points.append(self.cell.get_unit_shift(i) / index)
         for i, index in enumerate(self.hkl):
             if not index:
@@ -231,19 +231,19 @@ class LatticePlane(Plane):
         self._set_distance_from_0(self.r)
 
 
-    def describe_hkld(self): 
+    def describe_hkld(self):
         if not self.initialized: return "Plane not initialized"
         return "Plane indices: (%s %s %s). Distance from origin: %s" % (
-                                self.hkl[0], self.hkl[1],self.hkl[2], self.r) 
+                                self.hkl[0], self.hkl[1],self.hkl[2], self.r)
 
 
 class SurfaceDeformation:
-    "Stress-like deformation - perpendicular to surface"  
+    "Stress-like deformation - perpendicular to surface"
     def __init__(self, depth, fun):
         self.depth = depth
         self.fun = fun
     def __str__(self):
-        return "D_shell=%s" % self.depth  
+        return "D_shell=%s" % self.depth
 
 
 class LatticeSurface(LatticePlane):
@@ -260,16 +260,16 @@ class LatticeSurface(LatticePlane):
             return self.describe_hkld() + ". %s" % self.sd
         elif self.r:
             return "Sphere, r=%s. %s" % (self.r, self.sd)
-        else: 
+        else:
             return "Not initialized LatticeSurface"
 
     def get_planes(self):
-        """For sphere - returns bounding planes, eg. cube. 
+        """For sphere - returns bounding planes, eg. cube.
            Otherwise, returns itselfs
         """
         if self.hkl is not None:
             return [self]
-        else: #sphere 
+        else: #sphere
             r = self.r
             return [Plane((1,0,0,-r)), Plane((0,1,0,-r)), Plane((0,0,1,-r)),
                     Plane((1,0,0,r)), Plane((0,1,0,r)), Plane((0,0,1,r))]
@@ -289,7 +289,7 @@ class FreshModel(Model):
     def compute_scope(self):
         """
         Get minimal and maximal coordinate in a,b,c cell parameters units.
-        It cuts out a "rectangular parallelepiped"(?)  that contains the grain.  
+        It cuts out a "rectangular parallelepiped"(?)  that contains the grain.
         """
         self.vertices = self.get_vertices()
         #vertices transformed to orthonormal system
@@ -308,13 +308,13 @@ class FreshModel(Model):
 
     def get_scope_info(self):
         "returns info about results of compute_scope() method"
-        lar = self.a_scope[1] - self.a_scope[0] 
-        lbr = self.b_scope[1] - self.b_scope[0] 
-        lcr = self.c_scope[1] - self.c_scope[0] 
+        lar = self.a_scope[1] - self.a_scope[0]
+        lbr = self.b_scope[1] - self.b_scope[0]
+        lcr = self.c_scope[1] - self.c_scope[0]
         ncl = lar*lbr*lcr
-        nnd = len(self.lattice.nodes) 
+        nnd = len(self.lattice.nodes)
         nat = sum([len(i.atoms_in_node) for i in self.lattice.nodes])
-        t = "Considering %ix%ix%i=%i cells, " % (lar, lbr, lcr, ncl) 
+        t = "Considering %ix%ix%i=%i cells, " % (lar, lbr, lcr, ncl)
         t += "%i nodes/cell, %i atoms/cell, " % (nnd, nat)
         t += "%i nodes, %i atoms." % (ncl*nnd, nat*ncl)
         return t
@@ -328,7 +328,7 @@ class FreshModel(Model):
                     for node in self.lattice.nodes:
                         yield node, array((i, j, k), float) + node.pos_in_cell
 
-  
+
     def _do_export_atoms(self, f, format):
         if format == "powdercell":
             self.lattice.export_powdercell(f)
@@ -338,12 +338,12 @@ class FreshModel(Model):
 
 
 class CuttedGrain(FreshModel):
-    """Finite grain made from unfinite crystal lattice (CrystalLattice) 
+    """Finite grain made from unfinite crystal lattice (CrystalLattice)
        by cleaving using added surfaces (sequence of Plane)"""
 
     def __init__(self, lattice, surfaces=None, title="generated by gosam"):
         FreshModel.__init__(self, lattice, title=title)
-        if isinstance(surfaces, LatticeSurface): 
+        if isinstance(surfaces, LatticeSurface):
             surfaces = [surfaces]
         for i in surfaces:
             i.set_cell(self.unit_cell)
@@ -398,12 +398,12 @@ class CuttedGrain(FreshModel):
 
     def get_vertices(self):
         "get vertices of convex hull that contains the grain"
-        t = self.export_for_qhull(with_spheres=True)  
-        p = Popen(["qhull H Fp"], 
+        t = self.export_for_qhull(with_spheres=True)
+        p = Popen(["qhull H Fp"],
                   shell=True, stdin=PIPE, stdout=PIPE, close_fds=True)
         p.stdin.write(t)
         p.stdin.close()
-        return [[float(j) for j in i.split()] 
+        return [[float(j) for j in i.split()]
                     for i in p.stdout.readlines() if len(i.split()) == 3]
 
 
@@ -422,11 +422,11 @@ class CuttedGrain(FreshModel):
 
             # checking if atoms are inside grain
             outside = False
-            for srf in self.surfaces: 
+            for srf in self.surfaces:
                 if srf.hkl is not None:
                     t = -(inner(node_pos, srf.cosines) - srf.p)
                 else:
-                    t = srf.r - sqrt(inner(node_pos, node_pos)) 
+                    t = srf.r - sqrt(inner(node_pos, node_pos))
                 if t < -1e-12:
                     outside = True
                     not_included_counter += 1
@@ -444,30 +444,30 @@ class CuttedGrain(FreshModel):
                 else:
                     xyz = node_pos
                 dxyz = array((0., 0., 0.))
-                for srf in self.surfaces: 
+                for srf in self.surfaces:
                     if atom.non_zero:
                         if srf.hkl is not None:
                             t = -(inner(xyz, srf.cosines) - srf.p)
                         else:
-                            t = srf.r - sqrt(inner(xyz, xyz)) 
+                            t = srf.r - sqrt(inner(xyz, xyz))
                     else:
                         t = srf.tmp_t
                     if srf.sd is not None and t < srf.sd.depth:
                         shift = srf.sd.fun(t)
                         if srf.hkl is not None: # plane
-                            dxyz -= shift * srf.cosines 
+                            dxyz -= shift * srf.cosines
                         else: # sphere
                             r0 = srf.r - t
-                            dxyz -= shift / r0 * xyz  
+                            dxyz -= shift / r0 * xyz
                         shifts += 1
                     if min_dist is None or t < min_dist:
                         min_dist = t
                 self.atoms.append(mdprim.AtomG(atom.name, xyz+dxyz, min_dist))
-                if shifts > 0: 
+                if shifts > 0:
                     shifted_counter += 1
 
         print "%i nodes outside of grain." % not_included_counter
-        print "Number of atoms in grain: %i (shifted: %i)" % (len(self.atoms), 
+        print "Number of atoms in grain: %i (shifted: %i)" % (len(self.atoms),
                                                               shifted_counter)
         self.log("atom positions generated")
 
@@ -503,10 +503,10 @@ def generate_grain(d):
         formats = d["output_formats"]
     else:
         formats = ["xmol"]
-    extensions = { "pielaszek": ".at", 
-                   "xmol": ".xyz", 
+    extensions = { "pielaszek": ".at",
+                   "xmol": ".xyz",
                    "powdercell": ".cel",
-                   "dlpoly": ".dlpoly", 
+                   "dlpoly": ".dlpoly",
                    "atomeye": ".cfg"
                  }
 

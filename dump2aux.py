@@ -8,13 +8,13 @@ Input/output files can be gzipped or bzip2'ed.
 """
 
 usage_string = """\
-Usage: 
+Usage:
   dump2aux.py lammps_dump output.cfg
      convert LAMMPS dump file to cfg file
 
   dump2aux.py lammps_dump [[energy.aux] histogram.xy]
 
-  dump2aux.py ey energy_vs_y.histogram 
+  dump2aux.py ey energy_vs_y.histogram
         writes GB energy vs y to gbe_vs_y.hist
 """
 

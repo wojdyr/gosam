@@ -1,4 +1,4 @@
-# this file is part of gosam (generator of simple atomistic models) 
+# this file is part of gosam (generator of simple atomistic models)
 # Licence (of this file): public domain
 
 """\
@@ -20,7 +20,7 @@ class Pse:
         self.Name = Name
         self.Mass = Mass
     def __str__(self):
-        return "Z=%s %s (%s)  mass=%s" % (self.Z, self.Name, 
+        return "Z=%s %s (%s)  mass=%s" % (self.Z, self.Name,
                                           self.Symbol, self.Mass)
 
 

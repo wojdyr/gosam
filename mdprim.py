@@ -1,4 +1,4 @@
-# this file is part of gosam (generator of simple atomistic models) 
+# this file is part of gosam (generator of simple atomistic models)
 # Licence: GNU General Public License version 2
 """\
 Atom and CellMethod classes.
@@ -25,7 +25,7 @@ class Atom:
         if pbc_half is not None and (abs(d) > pbc_half).any():
             for i in range(3):
                 if abs(d[i]) > pbc_half[i]:
-                    d[i] = 2 * pbc_half[i] - abs(d[i]) 
+                    d[i] = 2 * pbc_half[i] - abs(d[i])
         return sqrt(inner(d, d)) # sqrt(sum(d**2)) is slower
 
     def get_shift(self, atom2, pbc=None):
@@ -54,7 +54,7 @@ class Atom:
         assert 0, "Unknown velocity"
 
 
-class AtomG(Atom): 
+class AtomG(Atom):
     "atom (in grain) - additional information about distance to surface"
     def __init__(self, name, pos, min_dist):
         Atom.__init__(self, name, pos)
@@ -79,7 +79,7 @@ class AtomVF(Atom):
         return pse.get_atom_mass(self.name)
 
     def get_velocity(self):
-        return sqrt(inner(self.vel, self.vel)) 
+        return sqrt(inner(self.vel, self.vel))
 
     def get_ekin(self):
         conv_factor = 1.0364269e-10 # u * (A/ns)^2 -> eV
@@ -93,7 +93,7 @@ class AtomVF(Atom):
         return 2 * self.get_ekin() / (3*kB)
 
 
-#only supports orthorhombic PBC 
+#only supports orthorhombic PBC
 class CellMethod:
     "Neighbour list maker"
     def __init__(self, atoms, r, pbc=None):
@@ -110,7 +110,7 @@ class CellMethod:
     def _find_containing_box(self):
         m = M = self.atoms[0].pos
         for i in self.atoms:
-            m = numpy.minimum(i.pos, m) 
+            m = numpy.minimum(i.pos, m)
             M = numpy.maximum(i.pos, M)
         return m, M
 
@@ -155,11 +155,11 @@ class CellMethod:
 
 
     def get_neighbours(self, n, extra_condition=None):
-        assert self.pbc is None 
+        assert self.pbc is None
         a = self.atoms[n]
         for cell_idx in self._get_neighbour_cells(a):
             for i in self.cells[cell_idx]:
-                dist = a.get_dist(self.atoms[i]) 
+                dist = a.get_dist(self.atoms[i])
                 if n != i and dist < self.r and (extra_condition is None
                                                     or extra_condition(dist)):
                     yield i

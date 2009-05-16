@@ -1,4 +1,4 @@
-# this file is part of gosam (generator of simple atomistic models) 
+# this file is part of gosam (generator of simple atomistic models)
 # Licence: GNU General Public License version 2
 """\
 Mathematical and matrix-related utilities.
@@ -19,7 +19,7 @@ def rodrigues(a, angle, verbose=False):
     omega = array([[   0., -a[2],  a[1]],
                    [ a[2],    0., -a[0]],
                    [-a[1],  a[0],    0.]])
-    rm = (identity(3) + omega * sin(angle) 
+    rm = (identity(3) + omega * sin(angle)
                             + dot(omega, omega) * (1 - cos(angle)))
     if verbose:
         print "rotation matrix:", rm
@@ -32,7 +32,7 @@ def print_matrix(text, M):
 
 def round_to_multiplicity(m, val):
     "round val to the nearest multiplicity of m, but avoid zero"
-    return (round(float(val) / m) or 1) * m 
+    return (round(float(val) / m) or 1) * m
 
 def is_diagonal(m):
     m = array(m)
@@ -50,14 +50,14 @@ class StdDev:
         return "%s +- %s" % (self.mean, self.get_stddev())
 
     def get_variance(self):
-        return self.S / (self.n - 1) 
+        return self.S / (self.n - 1)
 
-    def get_stddev(self):  
+    def get_stddev(self):
         return sqrt(self.get_variance())
 
-    def add_x(self, x): 
-        self.n += 1 
-        delta = x - self.mean 
+    def add_x(self, x):
+        self.n += 1
+        delta = x - self.mean
         self.mean += delta / self.n
         self.S += delta * (x - self.mean)
 

@@ -1,18 +1,18 @@
-# this file is part of gosam (generator of simple atomistic models) 
+# this file is part of gosam (generator of simple atomistic models)
 # Licence: GNU General Public License version 2
 """\
 CrystalLattice, UnitCell, etc.
 """
 
 from math import cos, sin, acos, asin, sqrt, pi, floor, ceil, radians, degrees
-from numpy import linalg 
+from numpy import linalg
 from numpy import array, dot, transpose
 
 
 class UnitCell:
     """basic unit cell  - triclinic
     """
-    def __init__(self, a, b, c, alpha, beta, gamma, 
+    def __init__(self, a, b, c, alpha, beta, gamma,
                  system="triclinic", rad=False, reciprocal=None):
         self.abc = self.a, self.b, self.c = a, b, c
         if not rad: #degrees
@@ -38,14 +38,14 @@ class UnitCell:
 
     def __str__(self):
         return self.system_name \
-                + " a=%s, b=%s, c=%s, alpha=%s, beta=%s, gamma=%s" % (self.a, 
+                + " a=%s, b=%s, c=%s, alpha=%s, beta=%s, gamma=%s" % (self.a,
                             self.b, self.c, self.alpha, self.beta, self.gamma)
 
 
     def _compute_sin_cos_V(self):
         "precomputations of some values (eg. sin(alpha)) -- for optimization"
         a, b, c = self.a, self.b, self.c
-        alpha, beta, gamma = self.alpha_rad, self.beta_rad, self.gamma_rad  
+        alpha, beta, gamma = self.alpha_rad, self.beta_rad, self.gamma_rad
         self.sines = array([sin(alpha), sin(beta), sin(gamma)])
         self.cosines = array([cos(alpha), cos(beta), cos(gamma)])
         #Giacovazzo p.62
@@ -61,19 +61,19 @@ class UnitCell:
             (Giacovazzo, p. 64)
         """
         a, b, c, V = self.a, self.b, self.c, self.V
-        alpha, beta, gamma = self.alpha_rad, self.beta_rad, self.gamma_rad  
+        alpha, beta, gamma = self.alpha_rad, self.beta_rad, self.gamma_rad
         ar = b*c*sin(alpha)/V
         br = a*c*sin(beta)/V
         cr = a*b*sin(gamma)/V
         cos_alphar = (cos(beta)*cos(gamma)-cos(alpha)) / (sin(beta)*sin(gamma))
         cos_betar = (cos(alpha)*cos(gamma)-cos(beta)) / (sin(alpha)*sin(gamma))
         cos_gammar = (cos(alpha)*cos(beta)-cos(gamma)) / (sin(alpha)*sin(beta))
-        return UnitCell(ar, br, cr, acos(cos_alphar), acos(cos_betar), 
+        return UnitCell(ar, br, cr, acos(cos_alphar), acos(cos_betar),
                               acos(cos_gammar), rad=True, reciprocal=self)
 
 
     def compute_transformation_matrix(self):
-        """ sets self.M and self.M_1 (M^-1) 
+        """ sets self.M and self.M_1 (M^-1)
              [       1/a               0        0   ]
          M = [  -cosG/(a sinG)    1/(b sinG)    0   ]
              [     a*cosB*         b*cosA*      c*  ]
@@ -83,7 +83,7 @@ class UnitCell:
          (Giacovazzo, p.68)
         """
         a, b, c = self.a, self.b, self.c
-        alpha, beta, gamma = self.alpha_rad, self.beta_rad, self.gamma_rad  
+        alpha, beta, gamma = self.alpha_rad, self.beta_rad, self.gamma_rad
         r = self.reciprocal
         self.M = array([
              (1/a,  0,  0),
@@ -150,7 +150,7 @@ class HexagonalUnitCell(UnitCell):
 
 
 class AtomInNode:
-    """atom with its coordinates (as fraction of unit cell parameters) in node 
+    """atom with its coordinates (as fraction of unit cell parameters) in node
       (atoms in one node can't be separated; node is in unit cell) """
     def __init__(self, name, xa=0, yb=0, zc=0):
         self.name = name
@@ -166,20 +166,20 @@ class Node:
         be kept together when cutting grains
     """
     def __init__(self, pos_in_cell, atoms_in_node):
-        self.pos_in_cell = array(pos_in_cell, float) 
-        self.atoms_in_node = [isinstance(i, AtomInNode) and i or AtomInNode(*i) 
+        self.pos_in_cell = array(pos_in_cell, float)
+        self.atoms_in_node = [isinstance(i, AtomInNode) and i or AtomInNode(*i)
                               for i in atoms_in_node]
 
     def __str__(self):
-        return "Node at %s in cell with: %s" % (tuple(self.pos_in_cell), 
+        return "Node at %s in cell with: %s" % (tuple(self.pos_in_cell),
                                ", ".join([str(i) for i in self.atoms_in_node]))
-        
+
     def shift(self, v):
         self.pos_in_cell = (self.pos_in_cell + array(v)) % 1.0
 
     def is_normalized(self):
         """Are positions of all the atoms in this node in the <0,1) range.
-           (i.e. checking self.pos_in_cell+atom.pos) 
+           (i.e. checking self.pos_in_cell+atom.pos)
         """
         for atom in self.atoms_in_node:
             p = self.pos_in_cell + atom.pos
@@ -191,14 +191,14 @@ class Node:
 class CrystalLattice:
     "Unfinite crystal lattice = unit cell + nodes in cell"
     def __init__(self, unit_cell, nodes, name="Mol"):
-        self.unit_cell = unit_cell 
-        self.nodes = nodes 
+        self.unit_cell = unit_cell
+        self.nodes = nodes
         self.name = name
 
     def __str__(self):
         return str(self.unit_cell) + "   Nodes:\n" \
-                + "\n".join([str(i) for i in self.nodes]) 
-                
+                + "\n".join([str(i) for i in self.nodes])
+
     def count_species(self):
         names = set()
         for i in self.nodes:
@@ -212,22 +212,22 @@ class CrystalLattice:
             ain = i.atoms_in_node
             assert len(ain) == 2
             ain[0].name, ain[1].name = ain[1].name, ain[0].name
-            
+
     def shift_nodes(self, v):
         for i in self.nodes:
             i.shift(v)
 
     def export_powdercell(self, f):
         cell = self.unit_cell
-        print >>f, "CELL %f %f %f %f %f %f" % (cell.a, cell.b, cell.c, 
+        print >>f, "CELL %f %f %f %f %f %f" % (cell.a, cell.b, cell.c,
                                              cell.alpha, cell.beta, cell.gamma)
         names = []
         for node in self.nodes:
             for atom in node.atoms_in_node:
                 pos = node.pos_in_cell + atom.pos
-                names.append(atom.name) 
+                names.append(atom.name)
                 xname = "%s%i" % (atom.name, names.count(atom.name))
-                print >>f, "%-4s %-4s %-8s %-8s %-8s" % (atom.name, atom.name, 
+                print >>f, "%-4s %-4s %-8s %-8s %-8s" % (atom.name, atom.name,
                                                         pos[0], pos[1], pos[2])
 
 
@@ -239,7 +239,7 @@ def generate_polytype(a, h, polytype):
     """
     pos = { "A" : (0.0, 0.0),
             "B" : (1/3., 2/3.),
-            "C" : (2/3., 1/3.) 
+            "C" : (2/3., 1/3.)
           }
     polytype = polytype.upper()
     N = len(polytype)
