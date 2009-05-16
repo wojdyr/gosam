@@ -23,6 +23,7 @@ import bz2
 import gzip
 
 from rotmat import StdDev
+from mdprim import AtomVF
 
 #e0 = -6.1637
 e0 = -6.1646668 #SiC285.tersoff
@@ -32,7 +33,11 @@ y_pos = 3
 z_pos = 4
 nbins = 128
 
-atomeye_species = {"1": "12.01\nC", "2": "28.09\nSi"}
+atomeye_species = { 1: "12.01\nC",
+                    2: "28.09\nSi",
+                    3: "20.0\nB",
+                    4: "20.0\nGe"
+                  }
 
 conversion_eV_A_to_J_m2 = 16.021765
 
@@ -49,6 +54,7 @@ def open_any(name, mode='r'):
 class DumpReader:
     def __init__(self, dump_filename):
         self.dump = open_any(dump_filename)
+        self.filename = dump_filename
         self._read_header()
 
     def _read_header(self):
@@ -70,6 +76,20 @@ class DumpReader:
 
     def read_atom_line(self):
         return self.dump.readline()
+
+    def get_configuration(self):
+        atoms = [None for i in range(self.natoms)]
+        for i in range(self.natoms):
+            id_, type, x_, y_, z_ = dr.read_atom_line().split()[:5]
+            pos = (float(x_) - dr.pbc_lo[0],
+                   float(y_) - dr.pbc_lo[1],
+                   float(z_) - dr.pbc_lo[2])
+            n = int(id_)
+            name = atomeye_species[int(type)].split()[-1]
+            atoms[n] = AtomVF(name, n+1, pos, vel=None, force=None)
+        pbc = [[self.pbc[0],0,0], [0,self.pbc[1],0], [0,0,self.pbc[2]]]
+        title = "from LAMMPS dump :" + filename
+        return model.Model(atoms, pbc=pbc, title=title)
 
 
 def dump2cfg(dump_filename, cfg_filename):
@@ -104,7 +124,7 @@ def dump2cfg(dump_filename, cfg_filename):
     pos0 = 0.
     for (type, x, y, z, ex) in alist:
         if type != prev:
-            cfg.write("%s\n" % atomeye_species[type])
+            cfg.write("%s\n" % atomeye_species[int(type)])
             prev = type
         xcol = (2 * (x - pos0)) % 1.
         cfg.write("%.7f %.7f %.7f %s %.3f\n" % (x, y, z, ex, xcol))
