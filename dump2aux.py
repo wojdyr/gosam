@@ -24,6 +24,7 @@ import gzip
 
 from rotmat import StdDev
 from mdprim import AtomVF
+import model
 
 #e0 = -6.1637
 e0 = -6.1646668 #SiC285.tersoff
@@ -80,15 +81,15 @@ class DumpReader:
     def get_configuration(self):
         atoms = [None for i in range(self.natoms)]
         for i in range(self.natoms):
-            id_, type, x_, y_, z_ = dr.read_atom_line().split()[:5]
-            pos = (float(x_) - dr.pbc_lo[0],
-                   float(y_) - dr.pbc_lo[1],
-                   float(z_) - dr.pbc_lo[2])
+            id_, type, x_, y_, z_ = self.read_atom_line().split()[:5]
+            pos = (float(x_) - self.pbc_lo[0],
+                   float(y_) - self.pbc_lo[1],
+                   float(z_) - self.pbc_lo[2])
             n = int(id_)
             name = atomeye_species[int(type)].split()[-1]
-            atoms[n] = AtomVF(name, n+1, pos, vel=None, force=None)
+            atoms[n-1] = AtomVF(name, n, pos, vel=None, force=None)
         pbc = [[self.pbc[0],0,0], [0,self.pbc[1],0], [0,0,self.pbc[2]]]
-        title = "from LAMMPS dump :" + filename
+        title = "from LAMMPS dump :" + self.filename
         return model.Model(atoms, pbc=pbc, title=title)
 
 
@@ -162,7 +163,7 @@ def calculate_gb_energy(dump_filename, aux_filename=None, hist_filename=None):
             hist_y.append((z, gb_energy, s / count))
 
     # the GB is assumed to be at z=0
-    qb = len(hist_y) // 4
+    qb = int(0.6 * len(hist_y) / 2)
     gbe = sum(i[1] for i in hist_y[-qb:] + hist_y[:qb])
     print "GB energy: ", round(gbe, 4)
 

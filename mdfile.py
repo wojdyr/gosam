@@ -17,6 +17,7 @@ import sys
 import operator
 from optparse import OptionParser
 import bz2
+import gzip
 import numpy
 from numpy import linalg
 
@@ -348,7 +349,9 @@ def export_as_lammps(configuration, f):
     counts = configuration.count_species()
     species = sorted(counts.keys())
     print >>f, "\n%d\tatoms" % len(configuration.atoms)
-    print >>f, "%d atom types # %s" % (len(species), " ".join(species))
+    #print >>f, "%d atom types # %s" % (len(species), " ".join(species))
+    # XXX for now i need 4 atom types for 2 species
+    print >>f, "%d atom types # %s" % (2*len(species), " ".join(species))
     spmap = dict((i, n+1) for n, i in enumerate(species))
     print >>f, "0 %.6f xlo xhi" % ort_pbc[0]
     print >>f, "0 %.6f ylo yhi" % ort_pbc[1]
@@ -473,6 +476,8 @@ def get_type_from_filename(name):
         return "poscar"
     elif name.endswith(".bz2"):
         return get_type_from_filename(name[:-4])
+    elif name.endswith(".gz"):
+        return get_type_from_filename(name[:-3])
     else:
         print "Can't deduce filetype from filename:", name
         return None
@@ -481,6 +486,8 @@ def get_type_from_filename(name):
 def open_any(name, mode='r'):
     if name.endswith(".bz2"):
         return bz2.BZ2File(name, mode)
+    elif name.endswith(".gz"):
+        return gzip.GzipFile(name, mode)
     elif name == '-':
         if 'w' in mode:
             return sys.stdout
