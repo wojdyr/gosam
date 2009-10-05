@@ -193,6 +193,7 @@ class CrystalLattice:
     def __init__(self, unit_cell, nodes, name="Mol"):
         self.unit_cell = unit_cell
         self.nodes = nodes
+        assert isinstance(name, basestring)
         self.name = name
 
     def __str__(self):
