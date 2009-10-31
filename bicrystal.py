@@ -35,11 +35,15 @@ Usage:
              increased by the length.
    * shift:dx,dy,dz - shift nodes in unit cell.
    * lattice:name - e.g. sic
+   * edge:z1,z2 - Removes atoms that have y in lower half of the box and 
+             z1 < z < z2. There is a chance that this will become an edge 
+             dislocation after squeezing or running high temperature MD.
 
 Examples:
     bicrystal.py 001 twist 5 20 20 80 twist_s5.cfg
     bicrystal.py 100 013 5 20 20 80 tilt_s5.cfg
     bicrystal.py 100 m011 5 20 20 80 tilt_s5.cfg
+    bicrystal.py 100 0,1,0 theta=90 1 1 1  tmp.cfg
 
 caution: the program was tested only for a few cases (may not work in others)
 """
@@ -113,6 +117,7 @@ class BicrystalOptions:
         self.allall = None
         self.lattice_name = "sic"
         self.lattice_shift = None
+        self.edge = None
 
 
     def parse_sigma_and_find_theta(self, sigma_arg):
@@ -229,6 +234,12 @@ def parse_args():
             if len(s) != 3:
                 raise ValueError("Wrong format of shift parameter")
             opts.lattice_shift = [float(i) for i in s]
+        elif i.startswith("edge:"):
+            try:
+                z1, z2 = i[5:].split(",")
+                opts.edge = (float(z1), float(z2))
+            except TypeError, ValueError:
+                raise ValueError("Wrong format of edge parameter")
         else:
             raise ValueError("Unknown option: %s" % i)
     # default values
@@ -332,6 +343,14 @@ def main():
                                      aa[0].name, aa[0].name, opts.remove_dist2)
             config.remove_close_neighbours(distance=opts.remove_dist2, atoms=aa)
             config.atoms += aa
+
+    if opts.edge:
+        z1, z2 = opts.edge
+        sel = [n for n, a in enumerate(config.atoms)
+               if 0 < a.pos[1] <= config.pbc[1][1] / 2. and z1 < a.pos[2] < z2]
+        print "edge: %d atoms is removed" % len(sel)
+        for i in reversed(sel):
+            del config.atoms[i]
 
     if opts.all:
         #config.output_all_removal_possibilities(opts.output_filename)

@@ -296,8 +296,15 @@ class Model:
         assert "%" in filename
         distances = self._find_symmetric_z_distances()
         orig_atoms = self.atoms
+        def upper(a):
+            return 1 if a.pos[1] > 0 else -1
         for n, j in enumerate(distances):
-            self.atoms = [a for a in orig_atoms if not 1e-7 < a.pos[2] < j / 2.]
+            # the version using upper() removes atoms from one crystal,
+            # in upper half (i.e. for y > 1) of the boundary,
+            # and from the other crystal in the bottom half.
+            self.atoms = [a for a in orig_atoms
+            #              if not 1e-7 < a.pos[2] < j / 2.]
+                          if not 1e-7 < (upper(a)*a.pos[2]) < j / 2.]
             ndel = len(orig_atoms) - len(self.atoms)
             self.title = "del %d atoms with cutoff: %g" % (ndel, j)
             print self.title
@@ -332,6 +339,8 @@ class Model:
             f = mdfile.open_any(f, 'w')
         if format is None:
             format = mdfile.get_type_from_filename(f.name);
+            if format is None:
+                return
         format = format.lower()
         print "Saving atoms to file '%s' in format '%s'" % (f.name, format)
         self._do_export_atoms(f, format)
