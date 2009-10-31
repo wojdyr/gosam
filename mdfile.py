@@ -188,16 +188,20 @@ def dlpoly_history_info(ifile):
 
 def get_stoichiometry_string(configuration):
     counts = configuration.count_species()
-    return "Stechiometry: " + " ".join("%s:%d" % i for i in counts.iteritems())
+    return "Stoichiometry: " + " ".join("%s:%d" % i for i in counts.iteritems())
 
-def export_for_atomeye(configuration, f, aux=None):
+def export_for_atomeye(configuration, f):
     "AtomEye Extended CFG format"
-    if not aux:
-        aux = []
-    # aux = ["temperature [K]"]
-    aux_fun = {
-            "temperature [K]": (lambda i: i.get_temperature())
-            }
+    aux = [
+            # ("temperature [K]", lambda a: a.get_temperature())
+          ]
+
+    # atoms from VASP POSCAR with Selective dynamics have allow_change attr
+    if hasattr(configuration.atoms[0], "allow_change"):
+        aux += [ ("change x", lambda a: float(a.allow_change[0])),
+                 ("change y", lambda a: float(a.allow_change[1])),
+                 ("change z", lambda a: float(a.allow_change[2])) ]
+
     pbc = configuration.pbc
     if pbc is None or len(pbc) == 0:
         raise ValueError("no PBC")
@@ -211,11 +215,9 @@ def export_for_atomeye(configuration, f, aux=None):
         for j in range(3):
             print >>f, "H0(%i,%i) = %f A" % (i+1, j+1, configuration.pbc[i][j])
     print >>f, ".NO_VELOCITY."
-    entry_count = 3 + len(aux)
-    entry_f = " ".join(["%f"] * entry_count)
-    print >>f, "entry_count = %i" % entry_count
-    for n, aux_name in enumerate(aux):
-        print >>f, "auxiliary[%i] = %s" % (n, "temperature [K]")
+    print >>f, "entry_count = %i" % (3 + len(aux))
+    for n, a in enumerate(aux):
+        print >>f, "auxiliary[%i] = %s" % (n, a[0])
     H_1 = linalg.inv(pbc)
     previous_name = None
     for i in configuration.atoms:
@@ -225,9 +227,9 @@ def export_for_atomeye(configuration, f, aux=None):
             previous_name = i.name
         s = numpy.dot(i.pos, H_1) % 1.0
         entries = [s[0], s[1], s[2]]
-        for au in aux:
-            entries += aux_fun[au](i)
-        print >>f, entry_f % tuple(entries)
+        for aname, afunc in aux:
+            entries.append(afunc(i))
+        print >>f, " ".join("%f" % i for i in entries)
 
 
 def import_atomeye(ifile):
@@ -349,9 +351,11 @@ def export_as_lammps(configuration, f):
     counts = configuration.count_species()
     species = sorted(counts.keys())
     print >>f, "\n%d\tatoms" % len(configuration.atoms)
-    #print >>f, "%d atom types # %s" % (len(species), " ".join(species))
+
     # XXX for now i need 4 atom types for 2 species
-    print >>f, "%d atom types # %s" % (2*len(species), " ".join(species))
+    species += ["B", "Ge"]
+
+    print >>f, "%d atom types # %s" % (len(species), " ".join(species))
     spmap = dict((i, n+1) for n, i in enumerate(species))
     print >>f, "0 %.6f xlo xhi" % ort_pbc[0]
     print >>f, "0 %.6f ylo yhi" % ort_pbc[1]
@@ -364,26 +368,29 @@ def export_as_lammps(configuration, f):
 
 def export_as_poscar(configuration, f):
     "exporting coordinates as VASP POSCAR file"
-    # line 1: a comment (should be name of the system)
-    print >>f, configuration.title
+    # make list of species
+    counts = configuration.count_species()
+    # reverse if you want to have Si before C
+    species = sorted(counts.keys(), reverse=False)
+
+    # line 1: a comment (usually the name of the system; we put here elements)
+    print >>f, " ".join(species)
     # line 2: scaling factor
     print >>f, "1.0"
     # line 3, 4, 5: the unit cell of the system
     for i in range(3):
         print >>f, "%.15g %.15g %.15g" % tuple(configuration.pbc[i])
 
-    # make list of species
-    counts = configuration.count_species()
-    # reverse to have Si before C
-    species = sorted(counts.keys(), reverse=True)
-
     # line 6: the number of atoms per atomic species
-    print "Species:",
     for i in species:
-        print i,
         print >>f, counts[i],
     print >>f
-    print
+
+    # optional line
+    selective_dynamics = hasattr(configuration.atoms[0], "allow_change")
+    if selective_dynamics:
+        print >>f, "Selective dynamics"
+
     # line 7: Cartesian/Direct switch
     print >>f, "Direct"
 
@@ -393,13 +400,18 @@ def export_as_poscar(configuration, f):
         for i in configuration.atoms:
             if i.name == sp:
                 s = numpy.dot(i.pos, H_1) % 1.0
-                print >>f, "%.15g %.15g %.15g" % tuple(s)
+                if selective_dynamics:
+                    allow_change = [('T' if i else 'F') for i in s[3:6]]
+                    print >>f, "%.15g %.15g %.15g %s %s %s" % (
+                                s[0], s[1], s[2], c[0], c[1], c[2])
+                else:
+                    print >>f, "%.15g %.15g %.15g" % tuple(s)
 
 
 def import_poscar(ifile):
-    species = ["Si", "C"]
-
-    title = ifile.readline().strip()
+    first_line = ifile.readline().strip()
+    # by our convention, first line contains symbols of elements
+    species = first_line.split()
     scaling_factor = float(ifile.readline())
     assert scaling_factor > 0, \
            "POSCAR import: negative scaling factors are not supported"
@@ -413,6 +425,11 @@ def import_poscar(ifile):
 
     line = ifile.readline()
     atom_count = [int(i) for i in line.split()]
+
+    # check if it's possible that the species above are set correctly
+    assert len(species) == len(atom_count), \
+            "POSCAR import: first line should contain (only) symbols of atoms"
+
     H = numpy.array(pbc, float)
 
     selective_dynamics = False
@@ -434,9 +451,12 @@ def import_poscar(ifile):
             raw_pos = (float(s[0]), float(s[1]), float(s[2]))
             pos = raw_pos
             pos = numpy.dot(raw_pos, H)
-            atoms.append(AtomVF(name, len(atoms), pos, None, None))
+            atom = AtomVF(name, len(atoms), pos, None, None);
+            if len(s) == 6: # interpret T/F
+                atom.allow_change = (s[3] != 'F', s[4] != 'F', s[5] != 'F')
+            atoms.append(atom)
 
-    return model.Model(atoms, pbc=pbc, title=title)
+    return model.Model(atoms, pbc=pbc)
 
 
 def export_as_gulp(configuration, f):
