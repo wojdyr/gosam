@@ -12,13 +12,17 @@ Usage:
   dump2aux.py lammps_dump output.cfg
      convert LAMMPS dump file to cfg file
 
-  dump2aux.py lammps_dump [[energy.aux] histogram.xy]
+  dump2aux.py hist lammps_dump histogram.xy
 
   dump2aux.py ey energy_vs_y.histogram
         writes GB energy vs y to gbe_vs_y.hist
+
+  dump2aux.py lammps_dump1 [lammps_dump2 ...]
+        calculate GB energies
 """
 
 import sys
+import os.path
 import bz2
 import gzip
 
@@ -33,14 +37,16 @@ val_pos = -1
 y_pos = 3
 z_pos = 4
 nbins = 128
+gb_relative_width = 0.7
+#gb_relative_width = None
 
 atomeye_species = { 1: "12.01\nC",
                     2: "28.09\nSi",
                     3: "20.0\nB",
-                    4: "20.0\nGe"
+                    4: "20.0\nCl"
                   }
 
-conversion_eV_A_to_J_m2 = 16.021765
+conversion_eV_A2_to_J_m2 = 16.021765
 
 
 def open_any(name, mode='r'):
@@ -102,6 +108,7 @@ def dump2cfg(dump_filename, cfg_filename):
     cfg = open_any(cfg_filename, "w")
     cfg.write("Number of particles = %d\n" % dr.natoms);
     cfg.write("# converted by dump2aux.dump2cfg from %s\n" % dump_filename);
+    cfg.write("# full original path: %s\n" % os.path.abspath(dump_filename));
     cfg.write("A = 1.0 Angstrom (basic length-scale)\n")
     for i in range(3):
         for j in range(3):
@@ -122,7 +129,7 @@ def dump2cfg(dump_filename, cfg_filename):
         alist[int(id_)-1] = (type, x, y, z, ex.strip())
     # write atoms
     prev = None
-    pos0 = 0.
+    pos0 = _find_pos0(alist)
     for (type, x, y, z, ex) in alist:
         if type != prev:
             cfg.write("%s\n" % atomeye_species[int(type)])
@@ -130,8 +137,70 @@ def dump2cfg(dump_filename, cfg_filename):
         xcol = (2 * (x - pos0)) % 1.
         cfg.write("%.7f %.7f %.7f %s %.3f\n" % (x, y, z, ex, xcol))
 
+# pos0 is used for xcolor, i.e. for coloring based on the x coordinate
+# selection of pos0 matters when we compare different frames
+# If there is a rigid surface in the system, we use it as a reference for
+# other coordinates.
+def _find_pos0(alist):
+    selected = [a for a in alist if a[0] == "3"]
+    if selected:
+        elem = min(selected, key = lambda x: x[3])
+        return elem[1]
+    else: # no rigid surface
+        return sum(a[1] for a in alist) / len(alist)
 
-def calculate_gb_energy(dump_filename, aux_filename=None, hist_filename=None):
+def _print_gb_energy(energies, dr, verbose=False):
+    count = len(energies)
+    energy = sum(energies)
+    excess = energy - count * e0
+    if verbose:
+        print "PBC: %g x %g x %g" % tuple(dr.pbc)
+        print "total energy of %d atoms: %g eV (%g/at.), excess: %g" % (
+                count, energy, energy/count, excess)
+    area = dr.pbc[0] * dr.pbc[1]
+    gb_energy = excess / area * conversion_eV_A2_to_J_m2
+    if verbose:
+        print "GB energy:", gb_energy
+        print "n*Edisl:", excess * conversion_eV_A2_to_J_m2 * 1e-10 / dr.pbc[0]
+    return gb_energy
+
+
+def calculate_gbe_of_types12(dump_filename):
+    # read and parse first snapshot
+    dr = DumpReader(dump_filename)
+
+    energies = []
+    for i in range(dr.natoms):
+        tokens = dr.read_atom_line().split()
+        if tokens[1] in ("1", "2"):
+            val = float(tokens[val_pos])
+            energies.append(val)
+
+    return _print_gb_energy(energies, dr)
+
+
+def calculate_total_energy(dump_filename):
+    dr = DumpReader(dump_filename)
+
+    energies = []
+    for i in dr.dump:
+        s = i.split()
+        y = float(s[3]) / dr.pbc[1] % 1.
+        z = float(s[4]) / dr.pbc[2] % 1.
+        #if not 0.25 <= y < 0.75:
+        #if not 0.30 <= z < 0.70:
+        if 1:
+            energies.append(float(s[val_pos]))
+    #energies = [float(i.split()[val_pos]) for i in dr.dump]
+
+    _print_gb_energy(energies, dr, verbose=True)
+
+
+def calculate_gb_energy(dump_filename, hist_filename=None):
+    if gb_relative_width is None:
+        return calculate_gbe_of_types12(dump_filename)
+        ########## that's the end ####################
+
     # read and parse first snapshot
     dr = DumpReader(dump_filename)
     area = dr.pbc[0] * dr.pbc[1]
@@ -159,18 +228,17 @@ def calculate_gb_energy(dump_filename, aux_filename=None, hist_filename=None):
             s = sum(vv)
             count = len(vv)
             delta = s - e0 * count
-            gb_energy = delta / area * conversion_eV_A_to_J_m2
+            gb_energy = delta / area * conversion_eV_A2_to_J_m2
             hist_y.append((z, gb_energy, s / count))
 
     # the GB is assumed to be at z=0
-    qb = int(0.6 * len(hist_y) / 2)
+    qb = int(gb_relative_width * len(hist_y) / 2)
     gbe = sum(i[1] for i in hist_y[-qb:] + hist_y[:qb])
-    print "GB energy: ", round(gbe, 4)
 
-    if aux_filename:
-        aux = open_any(aux_filename, "w")
-        for i in values:
-            print >>aux, i
+    #if aux_filename:
+    #    aux = open_any(aux_filename, "w")
+    #    for i in values:
+    #        print >>aux, i
 
     if hist_filename:
         hist_file = open_any(hist_filename, "w")
@@ -208,12 +276,26 @@ def calc_gbe_vs_y(dump_filename):
 
 
 if __name__ == "__main__":
-    assert len(sys.argv) in (2,3,4), usage_string
-    if sys.argv[1] == "ey":
+    assert len(sys.argv) >1, usage_string
+    if len(sys.argv) == 3 and sys.argv[1] == "ey":
         calc_gbe_vs_y(sys.argv[2])
-    elif (len(sys.argv) == 3 and ".cfg" in sys.argv[2]):
+    if len(sys.argv) >= 3 and sys.argv[1] == "total":
+        for f in sys.argv[2:]:
+            if len(sys.argv) > 3:
+                print f
+            calculate_total_energy(f)
+    elif len(sys.argv) == 4 and sys.argv[1] == "hist":
+        gbe = calculate_gb_energy(sys.argv[2], sys.argv[3])
+        print "GB energy: ", round(gbe, 4)
+    elif len(sys.argv) == 3 and ".cfg" in sys.argv[2]:
         dump2cfg(sys.argv[1], sys.argv[2])
     else:
-        calculate_gb_energy(*sys.argv[1:])
+        if gb_relative_width:
+            print "GB energy [J/m2]"
+            print "GB width assumed as %g%% of slab" % (gb_relative_width * 100)
+        for i in sys.argv[1:]:
+            gbe = calculate_gb_energy(i)
+            name = (i[:-8] if i.endswith(".dump.gz") else i)
+            print "%s\t%f" % (name, gbe)
 
 
