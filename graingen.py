@@ -240,6 +240,8 @@ class LatticePlane(Plane):
 class SurfaceDeformation:
     "Stress-like deformation - perpendicular to surface"
     def __init__(self, depth, fun):
+        # depth 0 doesn't prevent deformation, because some atoms can be
+        # slightly outside of the surface (i.e. at negative depth)
         self.depth = depth
         self.fun = fun
     def __str__(self):
@@ -453,7 +455,11 @@ class CuttedGrain(FreshModel):
                     else:
                         t = srf.tmp_t
                     if srf.sd is not None and t < srf.sd.depth:
-                        shift = srf.sd.fun(t)
+                        if type(srf.sd.fun) is dict:
+                            fun = srf.sd.fun.get(atom.name)
+                        else:
+                            fun = srf.sd.fun
+                        shift = fun(t)
                         if srf.hkl is not None: # plane
                             dxyz -= shift * srf.cosines
                         else: # sphere
