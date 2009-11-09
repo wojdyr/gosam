@@ -400,7 +400,7 @@ class CuttedGrain(FreshModel):
         "get vertices of convex hull that contains the grain"
         t = self.export_for_qhull(with_spheres=True)
         p = Popen(["qhull H Fp"],
-                  shell=True, stdin=PIPE, stdout=PIPE, close_fds=True)
+                  shell=True, stdin=PIPE, stdout=PIPE)
         p.stdin.write(t)
         p.stdin.close()
         return [[float(j) for j in i.split()]
