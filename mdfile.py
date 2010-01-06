@@ -376,10 +376,10 @@ def export_as_poscar(configuration, f):
     # line 1: a comment (usually the name of the system; we put here elements)
     print >>f, " ".join(species)
     # line 2: scaling factor
-    print >>f, "1.0"
+    print >>f, "%.15f" % 1
     # line 3, 4, 5: the unit cell of the system
     for i in range(3):
-        print >>f, "%.15g %.15g %.15g" % tuple(configuration.pbc[i])
+        print >>f, "%19.15f %19.15f %19.15f" % tuple(configuration.pbc[i])
 
     # line 6: the number of atoms per atomic species
     for i in species:
@@ -402,10 +402,10 @@ def export_as_poscar(configuration, f):
                 s = numpy.dot(i.pos, H_1) % 1.0
                 if selective_dynamics:
                     allow_change = [('T' if i else 'F') for i in s[3:6]]
-                    print >>f, "%.15g %.15g %.15g %s %s %s" % (
+                    print >>f, "%19.15f %19.15f %19.15f %s %s %s" % (
                                 s[0], s[1], s[2], c[0], c[1], c[2])
                 else:
-                    print >>f, "%.15g %.15g %.15g" % tuple(s)
+                    print >>f, "%19.15f %19.15f %19.15f" % tuple(s)
 
 
 def import_poscar(ifile):
@@ -441,16 +441,16 @@ def import_poscar(ifile):
     if switch in ('c', 'k'):
         cartesian = True
 
-    assert not cartesian
-
     atoms = []
     for n, count in enumerate(atom_count):
         name = species[n]
         for i in xrange(count):
             s = ifile.readline().split()
             raw_pos = (float(s[0]), float(s[1]), float(s[2]))
-            pos = raw_pos
-            pos = numpy.dot(raw_pos, H)
+            if cartesian:
+                pos = scaling_factor*numpy.array(raw_pos)
+            else:
+                pos = numpy.dot(raw_pos, H)
             atom = AtomVF(name, len(atoms), pos, None, None);
             if len(s) == 6: # interpret T/F
                 atom.allow_change = (s[3] != 'F', s[4] != 'F', s[5] != 'F')
