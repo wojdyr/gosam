@@ -2,8 +2,8 @@
 # this file is part of gosam (generator of simple atomistic models)
 # Licence: GNU General Public License version 2
 """\
-converting LAMMPS dump files AtomEye cfg format,
-calculating GB energy.
+Converts LAMMPS dump files to AtomEye cfg format,
+calculates GB energy in bicrystal geometry.
 Input/output files can be gzipped or bzip2'ed.
 """
 
@@ -13,9 +13,10 @@ Usage:
      convert LAMMPS dump file to cfg file
 
   dump2aux.py hist lammps_dump histogram.xy
+        this may not work now
 
   dump2aux.py ey energy_vs_y.histogram
-        writes GB energy vs y to gbe_vs_y.hist
+        write GB energy vs y to gbe_vs_y.hist
 
   dump2aux.py lammps_dump1 [lammps_dump2 ...]
         calculate GB energies
@@ -25,6 +26,7 @@ import sys
 import os.path
 import bz2
 import gzip
+from math import sqrt
 
 from rotmat import StdDev
 from mdprim import AtomVF
@@ -37,8 +39,8 @@ val_pos = -1
 y_pos = 3
 z_pos = 4
 nbins = 128
-gb_relative_width = 0.7
-#gb_relative_width = None
+#gb_relative_width = 0.7
+gb_relative_width = None
 
 atomeye_species = { 1: "12.01\nC",
                     2: "28.09\nSi",
@@ -164,6 +166,28 @@ def _print_gb_energy(energies, dr, verbose=False):
         print "n*Edisl:", excess * conversion_eV_A2_to_J_m2 * 1e-10 / dr.pbc[0]
     return gb_energy
 
+def calculate_dislocation_energy(dump_filename, y0, z0, r):
+    dr = DumpReader(dump_filename)
+    energies = []
+    for i in range(dr.natoms):
+        s = dr.read_atom_line().split()
+        dy = abs(float(s[3]) - y0)
+        if dy > dr.pbc[1] / 2:
+            dy = dr.pbc[1] - dy
+        dz = abs(float(s[4]) - z0)
+        if dz > dr.pbc[2] / 2:
+            dz = dr.pbc[2] - dz
+        if dy*dy + dz*dz < r*r:
+            energies.append(float(s[val_pos]))
+    count = len(energies)
+    energy = sum(energies)
+    excess = energy - count * e0
+    disl_length = dr.pbc[0]
+    eV_A_to_J_m = conversion_eV_A2_to_J_m2 * 1e-10
+    e_disl = excess / disl_length * eV_A_to_J_m
+    print "%d atoms in cyllinder (y-%g)^2 + (z-%g)^2 < %g^2" % (count,y0,z0,r)
+    print "Edisl [J/m]: %g" % (e_disl)
+    return e_disl
 
 def calculate_gbe_of_types12(dump_filename):
     # read and parse first snapshot
@@ -289,6 +313,11 @@ if __name__ == "__main__":
         print "GB energy: ", round(gbe, 4)
     elif len(sys.argv) == 3 and ".cfg" in sys.argv[2]:
         dump2cfg(sys.argv[1], sys.argv[2])
+    elif len(sys.argv) == 6 and sys.argv[1] == "disl":
+        calculate_dislocation_energy(dump_filename=sys.argv[2],
+                                     y0=float(sys.argv[3]),
+                                     z0=float(sys.argv[4]),
+                                     r=float(sys.argv[5]))
     else:
         if gb_relative_width:
             print "GB energy [J/m2]"
