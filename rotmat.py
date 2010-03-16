@@ -62,3 +62,8 @@ class StdDev:
         self.S += delta * (x - self.mean)
 
 
+def pt_in_box(pt, max=array([1.,1.,1.]), min=array([0., 0., 0.])):
+    """True if min <= pt < max, False otherwise"""
+    pt = array(pt)
+    return all(pt < max) and all(min <= pt)
+

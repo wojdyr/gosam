@@ -8,13 +8,14 @@ colision detection, saving to file, etc.
 import inspect
 import random
 import sys
+import math
 import numpy
-from numpy import array
+from numpy import array, dot, linalg
 
 import mdprim
 import mdfile
 import rotmat
-
+from rotmat import rodrigues, is_diagonal, pt_in_box
 
 def _sort_and_uniq(dd):
     "sort real number and leave only unique ones (compare using epsilon)"
@@ -25,6 +26,30 @@ def _sort_and_uniq(dd):
             del dd[n+1]
         else:
             n += 1
+
+
+def _get_orthorhombic_pbc(m):
+    """\
+    the input is matrix 3x3, the output is diagonal.
+    Distorts the input matrix such that the output
+    is orthorhombic with the same volume as the
+    space defined by the input matrix.
+    """
+    if is_diagonal(m):
+        return m
+    else:
+        # x, y, z === unit vector in orthogonal cartesian space
+        x, y, z = numpy.identity(3)
+        # xi, yi, zi === initial matrix (m)
+        xi, yi, zi = m
+        # xf, yf, zf === final matrix (orthorhombic matrix)
+        #
+        # rotate full_pbc to make xi colinear with x
+        angle = -1.0*numpy.sign(xi[0])*math.acos(xi[0]/linalg.norm(xi))
+        ortho = numpy.dot(m, rodrigues(z, angle))
+        # yf (zf) is the projection of the rotated yi (zi) onto y (z)
+        ortho = numpy.diag(numpy.diagonal(ortho))
+        return ortho
 
 
 class Model:
@@ -81,6 +106,76 @@ class Model:
             modifier(i)
         self.log("atom positions modified using function: \n\t"
                            + inspect.getsource(modifier).replace("\n", "\n\t"))
+
+
+    def roundup_atoms(self):
+        "collect all atoms into the box defined by the pbc and the\n\
+        minimum atom position"
+        # rigid shift of the atom positions sets min(atom.pos) to (0,0,0)
+        m = array(map(min, numpy.transpose([a.pos for a in self.atoms])))
+        for i in self.atoms:
+            i.pos -= m
+        # ensure the pbc are (a) present and (b) a 3x3 matrix
+        shape = numpy.shape(self.pbc)
+        if shape == (3,3):
+            pv = self.pbc
+        elif shape == (3,):
+            pv = np.diag(self.pbc)
+        else:
+            raise ValueError("PBC is not 3 dimensional")
+        # move all atoms into the box defined by the pbc
+        pvinv = numpy.linalg.inv(pv)
+        for i in self.atoms:
+            d = numpy.floor(numpy.dot(i.pos, pvinv))
+            d = numpy.dot(d, pv)
+            i.pos -= d
+
+
+    def orthogonalize_pbc(self, verbose=False):
+        "moves the atoms periodically to generate orthogonal pbc"
+        # put all atoms in box with corners (0,0,0), pbc
+        self.roundup_atoms()
+        # convenience variables
+        pvi = self.pbc
+        pvf = _get_orthorhombic_pbc(pvi)
+        invpvf = linalg.inv(pvf)
+        pvi_dot_invpvf = numpy.dot(pvi, invpvf)
+        # check each atom
+        for atom in self.atoms:
+            if verbose:
+                print "Atom " + str(atom.name) + "...",
+            shell = 0
+            # si, scaled position of initial point in final pbc
+            # sf, scaled position of final point in final pbc
+            # sx, scaled translation of initial point along initial pbc
+            #     projected onto final pbc
+            si = dot(atom.pos, invpvf)
+            sf = si
+            sx = array([0,0,0])
+            while not pt_in_box(sf):
+                # check the next shell
+                shell += 1
+                if verbose:
+                    print "shell " + str(shell) + "...",
+                # make a list of all the boxes
+                scaled_pos = sum(sum(
+                    [[[[i,j,k]
+                    for k in range(-shell, shell+1)]
+                    for j in range(-shell, shell+1)]
+                    for i in range(-shell, shell+1)], []),[])
+                # only check those boxes on the edge--the shell
+                # the other will have been checked on a previous
+                # iteration
+                scaled_pos = filter(lambda x: shell in numpy.abs(x), scaled_pos)
+                for sx in scaled_pos:
+                    sf = si + dot(sx, pvi_dot_invpvf)
+                    if pt_in_box(sf):
+                        break
+            atom.pos += dot(sx, pvi)
+            if verbose:
+                print "done"
+        # set the pbc to the final pbc
+        self.pbc = pvf
 
 
     def count_neighbours(self, atom, max_bondlength):

@@ -381,6 +381,7 @@ def get_comment_list(configuration):
 
 def export_as_lammps(configuration, f):
     "exporting coordinates as LAMMPS input data file"
+    #configuration.orthogonalize_pbc()
     ort_pbc = get_orthorhombic_pbc(configuration.pbc)
     for i in get_comment_list(configuration):
         print >>f, "# " + i
