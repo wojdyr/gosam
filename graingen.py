@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # this file is part of gosam (generator of simple atomistic models)
 # Licence: GNU General Public License version 2
-# $Id:$
+# $Id$
 """
 Module for geometrical modelling of crystal grain.
 
