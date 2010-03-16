@@ -292,7 +292,8 @@ class Model:
         print "atoms count:", len(self.atoms)
         return distances
 
-    def output_all_removal2_possibilities(self, filename):
+    # this function is not used, it will be deleted in future
+    def output_all_removal2_possibilities_TO_BE_REMOVED(self, filename):
         assert "%" in filename
         distances = self._find_symmetric_z_distances()
         orig_atoms = self.atoms
@@ -312,23 +313,41 @@ class Model:
             self.export_atoms(fn)
 
 
-    def output_all_possibilities_all_stoich(self, filename):
+    def apply_all_possible_cutoffs_to_stgb(self, filename, single_cutoff):
         assert "%" in filename
         distances = self._find_symmetric_z_distances()
         orig_atoms = self.atoms
-        species = self.count_species()
-        assert len(species) == 2
-        name1, name2 = sorted(species.keys()) # C, Si
-        for n1, j1 in enumerate(distances):
-            for n2, j2 in enumerate(distances):
-                zmax = { name1: j1 / 2., name2: j2 / 2. }
+        def upper(a):
+            return 1 if a.pos[1] > 0 else -1
+
+        if single_cutoff:
+            for n, j in enumerate(distances):
+                # the version using upper() removes atoms from one crystal,
+                # in upper half (i.e. for y > 1) of the boundary,
+                # and from the other crystal in the bottom half.
                 self.atoms = [a for a in orig_atoms
-                              if not 1e-7 < a.pos[2] < zmax[a.name]]
+                              if not 1e-7 < a.pos[2] < j / 2.]
+                #              if not 1e-7 < (upper(a)*a.pos[2]) < j / 2.]
                 ndel = len(orig_atoms) - len(self.atoms)
-                self.title = "del %d atoms with cutoffs: %g, %g" % (ndel,j1,j2)
+                self.title = "del %d atoms with cutoff: %g" % (ndel, j)
                 print self.title
-                fn = filename.replace('%', "%d-%d" % (n1, n2))
+                fn = filename.replace('%', str(n))
                 self.export_atoms(fn)
+        else:
+            species = self.count_species()
+            assert len(species) == 2
+            name1, name2 = sorted(species.keys()) # C, Si
+            for n1, j1 in enumerate(distances):
+                for n2, j2 in enumerate(distances):
+                    zmax = { name1: j1 / 2., name2: j2 / 2. }
+                    self.atoms = [a for a in orig_atoms
+                                if not 1e-7 < upper(a)*a.pos[2] < zmax[a.name]]
+                    ndel = len(orig_atoms) - len(self.atoms)
+                    self.title = "del %d atoms with cutoffs: %g, %g" % (
+                                                                  ndel, j1, j2)
+                    print self.title
+                    fn = filename.replace('%', "%d-%d" % (n1, n2))
+                    self.export_atoms(fn)
 
 
     def export_atoms(self, f, format=None):

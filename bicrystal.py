@@ -354,11 +354,13 @@ def main():
 
     if opts.all:
         #config.output_all_removal_possibilities(opts.output_filename)
-        config.output_all_removal2_possibilities(opts.output_filename)
+        config.apply_all_possible_cutoffs_to_stgb(opts.output_filename,
+                                                  single_cutoff=True)
         return
 
     if opts.allall:
-        config.output_all_possibilities_all_stoich(opts.output_filename)
+        config.apply_all_possible_cutoffs_to_stgb(opts.output_filename,
+                                                  single_cutoff=False)
         return
 
     config.export_atoms(opts.output_filename)
