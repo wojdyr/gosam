@@ -168,7 +168,6 @@ def import_dlpoly_history(ifile):
     return all_configurations
 
 
-
 def dlpoly_history_info(ifile):
     title = ifile.readline().strip()
     print "title:", title
@@ -186,28 +185,42 @@ def dlpoly_history_info(ifile):
             frame_counter += 1
     print "finished.", frame_counter, "frames were found."
 
+
 def get_stoichiometry_string(configuration):
     counts = configuration.count_species()
     return "Stoichiometry: " + " ".join("%s:%d" % i for i in counts.iteritems())
 
+
 def export_for_atomeye(configuration, f):
     "AtomEye Extended CFG format"
+    pbc = configuration.pbc
+    atoms = configuration.atoms
     aux = [
-            # ("temperature [K]", lambda a: a.get_temperature())
+            # uncomment to add temperature (works if there are atom velocities
+            # in the input file)
+
+           #("temperature [K]", lambda a: a.get_temperature()),
+
+            # add aux value that can be used to color code atomic positions
+            # in unit cell, in selected direction. The coloring works with hsv
+            # color scale in AtomEye, or any other scale that is cyclic, i.e.
+            # the same color corresponds to values 0 and 1.
+
+           #("xcolor [0-1]", in_cell_pos_fun(0, pbc[0][0]/2,
+           #                                   pos0=_find_pos0(atoms))),
           ]
 
     # atoms from VASP POSCAR with Selective dynamics have allow_change attr
-    if hasattr(configuration.atoms[0], "allow_change"):
+    if hasattr(atoms[0], "allow_change"):
         aux += [ ("change x", lambda a: float(a.allow_change[0])),
                  ("change y", lambda a: float(a.allow_change[1])),
                  ("change z", lambda a: float(a.allow_change[2])) ]
 
-    pbc = configuration.pbc
     if pbc is None or len(pbc) == 0:
         raise ValueError("no PBC")
     if not isinstance(pbc, numpy.ndarray):
         pbc = numpy.array(pbc)
-    print >>f, "Number of particles = %i" % len(configuration.atoms)
+    print >>f, "Number of particles = %i" % len(atoms)
     for i in get_comment_list(configuration):
         print >>f, "# " + i
     print >>f, "A = 1.0 Angstrom (basic length-scale)"
@@ -220,7 +233,7 @@ def export_for_atomeye(configuration, f):
         print >>f, "auxiliary[%i] = %s" % (n, a[0])
     H_1 = linalg.inv(pbc)
     previous_name = None
-    for i in configuration.atoms:
+    for i in atoms:
         if previous_name != i.name:
             print >>f, pse.get_atom_mass(i.name)
             print >>f, i.name
@@ -230,6 +243,30 @@ def export_for_atomeye(configuration, f):
         for aname, afunc in aux:
             entries.append(afunc(i))
         print >>f, " ".join("%f" % i for i in entries)
+
+
+# This function returns reference 0 point for coloring based on
+# the x coordinate. The point is to color similar systems in the same way,
+# even if the center of mass has been shifted.
+# You may need to tune it for your data.
+def _find_pos0(atoms):
+    # in my systems B atoms are in a rigid surface, so we use it as
+    # a reference
+    selected = [a for a in atoms if a.name == "B"]
+    if selected:
+        elem = min(selected, key = lambda x: x[3])
+        return elem[1]
+    else: # no rigid surface
+        #return sum(a.pos[0] for a in atoms) / len(atoms)
+        return atoms[0].pos[0]
+
+
+# returns function that returns value in the [0,1) range that corresponds to 
+# position of atom in unit cell
+def in_cell_pos_fun(dir, cell_size, pos0=0):
+    print "adding aux for %s position in cell size: %g" % (chr(ord('x')+dir),
+                                                           cell_size)
+    return lambda a: ((a.pos[dir] - pos0) / cell_size) % 1.
 
 
 def import_atomeye(ifile):
