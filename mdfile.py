@@ -389,8 +389,8 @@ def export_as_lammps(configuration, f):
     species = sorted(counts.keys())
     print >>f, "\n%d\tatoms" % len(configuration.atoms)
 
-    # XXX for now i need 4 atom types for 2 species
-    species += ["B", "Ge"]
+    ## temporary hack: for now i need 4 atom types for 2 species
+    #species += ["B", "Ge"]
 
     print >>f, "%d atom types # %s" % (len(species), " ".join(species))
     spmap = dict((i, n+1) for n, i in enumerate(species))
