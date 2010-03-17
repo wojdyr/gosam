@@ -197,7 +197,8 @@ def get_named_lattice(name):
 
 usage = """Usage:
 monocryst.py crystal nx ny nz filename
- where crystal is one of "si", "sic", "sic:ABABC".
+ where crystal is one of "si", "diamond", "sic", "sic:ABABC";
+ nx, ny and nz are minimal dimensions in nm.
   In the last case any polytype can be given"
 """
 
@@ -207,7 +208,7 @@ def main():
         print usage
         sys.exit()
 
-    lattice = get_named_lattice(name)
+    lattice = get_named_lattice(sys.argv[1])
     nx, ny, nz = float(sys.argv[2]), float(sys.argv[3]), float(sys.argv[4])
     mono(lattice, nx, ny, nz, output_filename=sys.argv[5])
 
