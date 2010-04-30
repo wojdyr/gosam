@@ -40,6 +40,12 @@ def make_simple_cubic_lattice():
     node = graingen.Node((0.0, 0.0, 0.0), [("X", 0.0, 0.0, 0.0)])
     return graingen.CrystalLattice(cell, [node])
 
+def make_fcc_lattice(atom_name, a):
+    cell = graingen.CubicUnitCell(a)
+    node_pos = fcc_node_pos[:]
+    node_atoms = [ (atom_name, 0.0, 0.0, 0.0) ]
+    return make_lattice(cell, node_pos, node_atoms)
+
 
 def make_sic_lattice():
     print "---> Preparing Cubic SiC"
@@ -80,6 +86,9 @@ def make_diamond_lattice(atom_name="C", a=3.567):
 
 def make_si_lattice():
     return make_diamond_lattice(atom_name="Si", a=5.43)
+
+def make_cu_lattice():
+    return make_fcc_lattice(atom_name="Cu", a=3.615)
 
 class OrthorhombicPbcModel(graingen.FreshModel):
     def __init__(self, lattice, dimensions, title):
@@ -182,7 +191,9 @@ def mono(lattice, nx, ny, nz, output_filename="mono.cfg"):
 
 def get_named_lattice(name):
     name = name.lower()
-    if name == "sic":
+    if name == "cu":
+        lattice = make_cu_lattice()
+    elif name == "sic":
         lattice = make_sic_lattice()
     elif name == "si":
         lattice = make_si_lattice()
@@ -197,7 +208,7 @@ def get_named_lattice(name):
 
 usage = """Usage:
 monocryst.py crystal nx ny nz filename
- where crystal is one of "si", "diamond", "sic", "sic:ABABC";
+ where crystal is one of "cu", "si", "diamond", "sic", "sic:ABABC";
  nx, ny and nz are minimal dimensions in nm.
   In the last case any polytype can be given"
 """
