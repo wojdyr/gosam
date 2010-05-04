@@ -44,6 +44,7 @@ from subprocess import Popen, PIPE
 from tempfile import NamedTemporaryFile
 import commands
 import sys
+import os.path
 from numpy import array, zeros, dot, sometrue, inner, cross
 # file formats
 from mdfile import *
@@ -252,7 +253,9 @@ class LatticeSurface(LatticePlane):
     """Surface of CuttedGrain. Stores information about grain shell deformation.
        If hkl is None, it is treated as spherical surface.
     """
+    # default SurfaceDeformation
     default_sd = None
+
     def __init__(self, cell=None, hkl=None, r=None, sd=None):
         LatticePlane.__init__(self, cell, hkl, r)
         self.sd = sd or LatticeSurface.default_sd
@@ -484,8 +487,14 @@ def generate_grain(d):
     """
     Takes dictionary with names from "configuration file", i.e. globals()
     """
+    group_nodes =  "do_not_group_nodes" not in d or not d["do_not_group_nodes"]
     if "nodes" in d and "node_atoms" in d:
-        nodes = [Node(i, d["node_atoms"]) for i in d["nodes"]]
+        if group_nodes:
+            nodes = [Node(i, d["node_atoms"]) for i in d["nodes"]]
+        else:
+            nodes = [Node([atom[1]+node[0], atom[2]+node[1], atom[3]+node[2]],
+                          [AtomInNode(atom[0])])
+                       for atom in d["node_atoms"] for node in d["nodes"]]
     elif "atoms" in d:
         nodes = [Node(i[1:], [AtomInNode(i[0])]) for i in d["atoms"]]
     else:
@@ -520,10 +529,16 @@ def generate_grain(d):
     if "atomeye" in formats:
         g.set_pbc_with_vacuum(width=10)
 
-    for i in formats:
-        g.export_atoms(file(d["output_file"]+extensions[i], 'w'),  format=i)
+    if "output_file" in d:
+        basename = d["output_file"]
+    else:
+        filename = os.path.basename(sys.argv[0])
+        basename = os.path.splitext(filename)[0]
 
-    logfile = file(d["output_file"]+".log", 'w')
+    for i in formats:
+        g.export_atoms(file(basename+extensions[i], 'w'),  format=i)
+
+    logfile = file(basename+".log", 'w')
     logfile.write(str(g) + "\n\n" + "-"*60 + "\n" + file(sys.argv[0]).read())
     return g
 
