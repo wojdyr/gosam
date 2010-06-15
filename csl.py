@@ -10,8 +10,11 @@ usage_string = """\
                          with corresponding angle
                              examples: csl.py 100
                                        csl.py 100 limit=50
+
   csl.py hkl sigma     - details about CSL with given sigma
                          example: csl.py 111 31
+
+  csl.py hkl m n       - details about CSL generated with integers m and n
 """
 
 import sys
@@ -73,7 +76,16 @@ def get_theta_m_n_list(hkl, sigma, verbose=False):
     if sigma == 1:
         return [(0., 0, 0)]
     thetas = []
-    max_m = 2 * int(sqrt(sigma))
+
+    # From Grimmer, Acta Cryst. (1984). A40, 108-112
+    #    S = m^2 + (u^2+v^2+w^2) n^2     (eq. 2)
+    #    4 * 3 = 3^2 + 3
+    #    S = alpha * Sigma               (eq. 4)
+    #   where alpha = 1, 2 or 4.
+    # Since (u^2+v^2+w^2) n^2 > 0,
+    # thus alpha * Sigma > m^2    =>   m^2 < 4 * Sigma
+    max_m = int(sqrt(4*sigma))
+
     for m in range(max_m):
         for n in range(1, max_m):
             if not coprime(m, n):
