@@ -514,16 +514,29 @@ def generate_grain(d):
         bondlength = d["remove_undercoordinated_atoms"]
         g.print_coordination_statistics(bondlength)
         g.remove_undercoordinated_atoms(bondlength)
+    extensions = { "pielaszek": "at",
+                   "xmol": "xyz",
+                   "powdercell": "cel",
+                   "dlpoly": "dlpoly",
+                   "atomeye": "cfg"
+                 }
+    def format_name(name):
+        if name in extensions:
+            return name
+        elif name in extensions.values():
+            for key, value in extensions.items():
+                if value == name:
+                    return key
+        else:
+            msg = "WARNING: unknown file format in 'output_formats': " + name
+            logfile.write(msg + "\n")
+            print msg
+
     if "output_formats" in d:
-        formats = d["output_formats"]
+        formats = [format_name(i) for i in d["output_formats"]]
     else:
         formats = ["xmol"]
-    extensions = { "pielaszek": ".at",
-                   "xmol": ".xyz",
-                   "powdercell": ".cel",
-                   "dlpoly": ".dlpoly",
-                   "atomeye": ".cfg"
-                 }
+
 
     # this format requires PBC. We put vacuum (>=1nm) between images
     if "atomeye" in formats:
@@ -536,7 +549,7 @@ def generate_grain(d):
         basename = os.path.splitext(filename)[0]
 
     for i in formats:
-        g.export_atoms(file(basename+extensions[i], 'w'),  format=i)
+        g.export_atoms(file(basename+"."+extensions[i], 'w'),  format=i)
 
     logfile = file(basename+".log", 'w')
     logfile.write(str(g) + "\n\n" + "-"*60 + "\n" + file(sys.argv[0]).read())
