@@ -587,27 +587,53 @@ def parse_translate_option(str):
 
 def parse_options(argv):
     parser = OptionParser("usage: %prog [--pbc=list] input_file output_file")
-    parser.add_option("--pbc", help="PBC, eg. '[(60,0,0),(0,60,0),(0,0,60)]'")
-    parser.add_option("--filter", help="e.g. '15 < z < 30'")
-    parser.add_option("--translate", help="e.g. 'Si->C, C->Si'")
+    parser.add_option("--pbc",
+                      help="set PBC, e.g. '[(60,0,0),(0,60,0),(0,0,60)]'")
+    parser.add_option("--center-zero", action="store_true",
+                      help="move center of mass (with all atoms equal) to 0")
+    parser.add_option("--prefer-negative", action="store_true",
+                      help="if in PBC, select image in (-h/2, h/2)")
+    parser.add_option("--filter",
+                      help="criterion for leaving atoms, e.g. '15 < z < 30'")
+    parser.add_option("--translate", metavar="TR",
+                      help="change atomic symbols, e.g. 'Si->C, C->Si'")
     parser.add_option("--reference", help="adds dx, dy and dz properties",
                       metavar="FILE")
     (options, args) = parser.parse_args(argv)
+    if len(args) == 0:
+        parser.print_help()
+        sys.exit()
     if not (len(args) == 2 or ("vs" in args and len(args) in (5,6))):
         parser.error("Two arguments (input and output filenames) are required")
     return (options, args)
 
 
+def put_pbc_image_between_halfs(cfg):
+    pbc = numpy.diagonal(cfg.pbc)
+    for atom in cfg.atoms:
+        for i in range(3):
+            if atom.pos[i] > pbc[i] / 2.:
+                atom.pos[i] -= pbc[i]
+            elif atom.pos[i] < -pbc[i] / 2.:
+                atom.pos[i] += pbc[i]
+
+
 def process_input(input_filename, options):
-    configuration = import_autodetected(input_filename)
+    cfg = import_autodetected(input_filename)
     if options.pbc:
-        configuration.pbc = eval(options.pbc)
+        cfg.pbc = eval(options.pbc)
+
+    if options.prefer_negative:
+        if not cfg.pbc:
+            print "Error: Option --prefer-negative can be used only in PBC"
+            sys.exit()
+        put_pbc_image_between_halfs(cfg)
 
     if options.reference:
         cref = import_autodetected(options.reference)
-        assert len(cref.atoms) == len(configuration.atoms)
-        pbc = numpy.diagonal(configuration.pbc)
-        for n, a1 in enumerate(configuration.atoms):
+        assert len(cref.atoms) == len(cfg.atoms)
+        pbc = numpy.diagonal(cfg.pbc)
+        for n, a1 in enumerate(cfg.atoms):
             a0 = cref.atoms[n]
             a1.dpos = [a1.pos[0] - a0.pos[0],
                        a1.pos[1] - a0.pos[1],
@@ -619,29 +645,41 @@ def process_input(input_filename, options):
                     a1.dpos[i] += pbc[i]
         del cref
 
+    if options.center_zero:
+        ctr = sum(atom.pos for atom in cfg.atoms) / len(cfg.atoms)
+        print "center: (%.3f, %.3f, %.3f)" % tuple(ctr)
+        for atom in cfg.atoms:
+            atom.pos -= ctr
+
     if options.filter:
         def f(atom):
             name = atom.name
             x, y, z = atom.pos
             return eval(options.filter)
-        configuration.atoms = [i for i in configuration.atoms if f(i)]
-        print len(configuration.atoms), "atoms left."
+        cfg.atoms = [i for i in cfg.atoms if f(i)]
+        print len(cfg.atoms), "atoms left."
+        if len(cfg.atoms) == 0:
+            sys.exit()
+
     if options.translate:
         tr_map = parse_translate_option(options.translate)
-        for i in configuration.atoms:
+        for i in cfg.atoms:
             if i.name in tr_map:
                 i.name = tr_map[i.name]
-    return configuration
+
+    return cfg
+
+def export_autodetected(configuration, output_filename):
+    output_type = get_type_from_filename(output_filename)
+    #TODO: check if file already exists
+    ofile = open(output_filename, 'w')
+    configuration.export_atoms(output_filename, output_type)
 
 def convert(argv):
     "converts atomistic files"
     options, args = parse_options(argv)
     configuration = process_input(args[0], options)
-    output_filename = args[1]
-    output_type = get_type_from_filename(output_filename)
-    #TODO: check if file already exists
-    ofile = file(output_filename, 'w')
-    configuration.export_atoms(output_filename, output_type)
+    export_autodetected(configuration, args[1])
 
 
 def get_atom_func(name):
@@ -706,7 +744,7 @@ def avg_plot(argv):
 
 
 if __name__ == '__main__':
-    if sys.argv[1] == "--dlpoly-history-info":
+    if len(sys.argv) > 1 and sys.argv[1] == "--dlpoly-history-info":
         dlpoly_history_info(file(sys.argv[2]))
     elif "vs" in sys.argv:
         avg_plot(sys.argv[1:])
