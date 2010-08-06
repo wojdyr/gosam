@@ -5,7 +5,8 @@
 import sys
 from math import sin, cos, pi, atan, sqrt, degrees, radians, asin, acos
 from copy import deepcopy
-from numpy import dot, array, identity
+from optparse import OptionParser
+from numpy import dot, array, identity, minimum, maximum
 
 import graingen
 import mdprim
@@ -89,6 +90,15 @@ def make_si_lattice():
 
 def make_cu_lattice():
     return make_fcc_lattice(atom_name="Cu", a=3.615)
+
+def make_nacl_lattice():
+    cell = graingen.CubicUnitCell(5.64)
+    node_pos = fcc_node_pos[:]
+    node_atoms = [
+        ("Na", 0.0, 0.0, 0.0),
+        ("Cl",  0.5, 0.5, 0.5),
+    ]
+    return make_lattice(cell, node_pos, node_atoms)
 
 class OrthorhombicPbcModel(graingen.FreshModel):
     def __init__(self, lattice, dimensions, title):
@@ -177,7 +187,7 @@ def test_rotmono_adjust():
     config.export_atoms("monotest.cfg", format="atomeye")
 
 
-def mono(lattice, nx, ny, nz, output_filename="mono.cfg"):
+def mono(lattice, nx, ny, nz):
     min_dim = lattice.unit_cell.get_orthorhombic_supercell()
     dim = [round_to_multiplicity(min_dim[0], 10*nx),
            round_to_multiplicity(min_dim[1], 10*ny),
@@ -186,13 +196,15 @@ def mono(lattice, nx, ny, nz, output_filename="mono.cfg"):
     config = RotatedMonocrystal(deepcopy(lattice), dim, rot_mat=None,
                                 title=get_command_line())
     config.generate_atoms()
-    config.export_atoms(output_filename)
+    return config
 
 
 def get_named_lattice(name):
     name = name.lower()
     if name == "cu":
         lattice = make_cu_lattice()
+    elif name == "nacl":
+        lattice = make_nacl_lattice()
     elif name == "sic":
         lattice = make_sic_lattice()
     elif name == "si":
@@ -206,22 +218,44 @@ def get_named_lattice(name):
     return lattice
 
 
-usage = """Usage:
-monocryst.py crystal nx ny nz filename
- where crystal is one of "cu", "si", "diamond", "sic", "sic:ABABC";
- nx, ny and nz are minimal dimensions in nm.
-  In the last case any polytype can be given"
-"""
-
+usage = """monocryst.py [options] crystal nx ny nz output_filename
+ where nx, ny, nz are minimal dimensions in nm,
+ crystal is a one of predefined lattice types (case insensitive):
+ Cu, NaCl, Si, diamond, SiC, SiC:ABABC.
+ In the last case, any polytype can be given after colon."""
 
 def main():
-    if len(sys.argv) != 6:
-        print usage
+    parser = OptionParser(usage)
+    parser.add_option("--margin", type="float",
+                      help="increase PBC by given margin (of vacuum)")
+    parser.add_option("--center-zero", action="store_true",
+                      help="shift center to (0, 0, 0)")
+    (options, args) = parser.parse_args(sys.argv)
+    if len(args) == 1:
+        parser.print_help()
         sys.exit()
+    if len(args) != 6:
+        parser.error("5 arguments are required, not %d" % (len(args) - 1))
 
-    lattice = get_named_lattice(sys.argv[1])
-    nx, ny, nz = float(sys.argv[2]), float(sys.argv[3]), float(sys.argv[4])
-    mono(lattice, nx, ny, nz, output_filename=sys.argv[5])
+    lattice = get_named_lattice(args[1])
+    nx, ny, nz = float(args[2]), float(args[3]), float(args[4])
+    config = mono(lattice, nx, ny, nz)
+    if options.center_zero:
+        print "centering..."
+        m = config.atoms[0].pos.copy()
+        M = config.atoms[0].pos.copy()
+        for atom in config.atoms:
+            m = minimum(m, atom.pos)
+            M = maximum(M, atom.pos)
+        ctr = (m + M) / 2.
+        for atom in config.atoms:
+            atom.pos -= ctr
+    if options.margin is not None:
+        margin = options.margin * 10
+        print "adding margins %g A" % margin
+        for i in range(3):
+            config.pbc[i][i] += margin
+    config.export_atoms(args[5])
 
 
 
