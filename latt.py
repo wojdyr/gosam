@@ -41,6 +41,12 @@ class UnitCell:
                 + " a=%s, b=%s, c=%s, alpha=%s, beta=%s, gamma=%s" % (self.a,
                             self.b, self.c, self.alpha, self.beta, self.gamma)
 
+    # overloaded for hexagonal lattice
+    def get_orthorhombic_supercell(self):
+        if self.alpha == 90 and self.beta == 90 and self.gamma == 90:
+            return self.a, self.b, self.c
+        else:
+            assert "Not implemented."
 
     def _compute_sin_cos_V(self):
         "precomputations of some values (eg. sin(alpha)) -- for optimization"
@@ -116,9 +122,6 @@ class CubicUnitCell(UnitCell):
 
     def __str__(self):
         return self.system_name + "  a=%s" % self.a
-
-    def get_orthorhombic_supercell(self):
-        return self.a, self.b, self.c
 
 
 class TetragonalUnitCell(UnitCell):
