@@ -14,17 +14,9 @@ from csl import find_orthorhombic_pbc
 from rotmat import round_to_multiplicity
 from utils import get_command_line
 
-
-fcc_node_pos = [
-    (0.0, 0.0, 0.0),
-    (0.5, 0.5, 0.0),
-    (0.0, 0.5, 0.5),
-    (0.5, 0.0, 0.5),
-]
-
 def get_diamond_node_pos():
     node_pos = []
-    for i in fcc_node_pos:
+    for i in graingen.fcc_nodes:
         node_pos.append(i)
         node_pos.append((i[0]+0.25, i[1]+0.25, i[2]+0.25))
     return node_pos
@@ -43,7 +35,7 @@ def make_simple_cubic_lattice():
 
 def make_fcc_lattice(atom_name, a):
     cell = graingen.CubicUnitCell(a)
-    node_pos = fcc_node_pos[:]
+    node_pos = graingen.fcc_nodes[:]
     node_atoms = [ (atom_name, 0.0, 0.0, 0.0) ]
     return make_lattice(cell, node_pos, node_atoms)
 
@@ -55,7 +47,7 @@ def make_sic_lattice():
 
 
     # nodes in unit cell (as fraction of unit cell parameters)
-    node_pos = fcc_node_pos[:]
+    node_pos = graingen.fcc_nodes[:]
 
     # atoms in node (as fraction of unit cell parameters)
     node_atoms = [
@@ -93,7 +85,7 @@ def make_cu_lattice():
 
 def make_nacl_lattice():
     cell = graingen.CubicUnitCell(5.64)
-    node_pos = fcc_node_pos[:]
+    node_pos = graingen.fcc_nodes[:]
     node_atoms = [
         ("Na", 0.0, 0.0, 0.0),
         ("Cl",  0.5, 0.5, 0.5),

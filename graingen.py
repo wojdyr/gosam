@@ -54,6 +54,18 @@ from model import Model
 from rotmat import rodrigues
 
 
+fcc_nodes = [
+    (0.0, 0.0, 0.0),
+    (0.5, 0.5, 0.0),
+    (0.0, 0.5, 0.5),
+    (0.5, 0.0, 0.5),
+]
+
+bcc_nodes = [
+    (0.0, 0.0, 0.0),
+    (0.5, 0.5, 0.5)
+]
+
 
 class UnexpectedArgsError(Exception):
     def __init__(self, value):
