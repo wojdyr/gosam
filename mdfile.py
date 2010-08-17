@@ -309,7 +309,7 @@ def import_atomeye(ifile):
                 # if velocities are also reduced:
                 #vel = numpy.dot(vel, H)
             atoms.append(AtomVF(spec, len(atoms), pos, vel, None))
-    return model.Model(atoms, pbc=pbc, title="from cfg", comments=comments)
+    return model.Model(atoms, pbc=pbc, comments=comments)
 
 
 # This file format doesn't contain atom names, only numbers of atom types.
@@ -367,8 +367,7 @@ def import_lammps_data(ifile):
         pos = float(s[2]), float(s[3]), float(s[4])
         atoms.append(AtomVF(name, len(atoms), pos, vel=None, force=None))
 
-    return model.Model(atoms, pbc=pbc, title="from lammps data",
-                       comments=comments)
+    return model.Model(atoms, pbc=pbc, comments=comments)
 
 def get_comment_list(configuration):
     cmd = get_command_line()
