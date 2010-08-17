@@ -537,7 +537,6 @@ def generate_grain(d):
     else:
         formats = ["xmol"]
 
-
     # this format requires PBC. We put vacuum (>=1nm) between images
     if "atomeye" in formats:
         g.set_pbc_with_vacuum(width=10)

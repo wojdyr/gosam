@@ -352,16 +352,22 @@ def zero_plus_minus_gen(n):
 @transpose_3x3
 def find_orthorhombic_pbc(M):
     """\
-     we don't change the last axis (!!!)
-     vectors:
+     We don't change the last axis,
+     because it was set properly in make_parallel_to_axis().
+
+     Let M = [x, y, z], pbc = [x2, y2, z2],
+     where M and pbc are matrices 3x3, and x, y, z, x2, y2, z2 are vectors.
+     We search for multipliers b,c,d,e,f,g such that pbc is integer matrix,
          x2 = b x + d y + e z
          y2 = f x + c y + g z
          z2 = 0   + 0   + 1 z
-     the new matrix is:
-                         [[x2] [y2] [z2]]
-                         [[  ] [  ] [  ]]
-                         [[  ] [  ] [  ]]
-     we simply try to guess b,c,d,e,f,g
+     z2 = z/GCD(z), b != 0, c != 0,
+     and max(|x2|, |y2|, |z2|) has the smallest value possible.
+     (This description is a bit simplified, for details see the code)
+     
+     In matrix notation:       [b f 0]
+                           M x [d c 0] = pbc  
+                               [e g 1]        
     """
     # M is "half-integer" when using pc2fcc().
     # BTW I'm not sure if pc2fcc() is working properly.
@@ -389,7 +395,7 @@ def find_orthorhombic_pbc(M):
     #print "mx",Mx
     #print "my",My
 
-    z2 = z_
+    z2 = z_ # previously: z2 = z
     mxz = dot(Mx, z2)
     myz = dot(My, z2)
     for b in plus_minus_gen(n):
@@ -410,7 +416,6 @@ def find_orthorhombic_pbc(M):
                     fg = solve(aa, c * bb)
                     if is_integer(fg) and (numpy.abs(fg) < n - 0.5).all():
                         f, g = fg.round().astype(int)
-                        #print "solve:", fg[0], fg[1]
                         y2 = dot([f,c,g], My)
                         max_sq_ = max(dot(x2,x2), dot(y2,y2), dot(z2,z2))
                         if pbc is None or max_sq_ < max_sq:
@@ -435,11 +440,12 @@ def find_orthorhombic_pbc(M):
     if doubleM:
         pbc /= 2.
 
+    # optionally swap x2 with y2
     id = identity(3)
     if (pbc[1] == id[0]).all() or (pbc[0] == -id[1]).all():
         pbc[0], pbc[1] = pbc[1], -pbc[0]
     elif (pbc[1] == -id[0]).all() or (pbc[0] == id[1]).all():
-        pbc[0], pbc[1] = pbc[1], -pbc[0]
+        pbc[0], pbc[1] = -pbc[1], pbc[0]
 
     return pbc
 
