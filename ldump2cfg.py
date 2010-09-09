@@ -4,21 +4,30 @@
 """\
 Converts LAMMPS dump files to AtomEye cfg format,
 calculates GB energy in bicrystal geometry.
+
+The `ITEM: ATOMS` line in input file should start with:
+ITEM: ATOMS id type x y z
+and can be followed by other properties. These extra columns
+are saved in AtomEye file as auxiliary properties.
+
+Note: Old versions of LAMMPS don't specify columns after `ITEM: ATOMS`.
+If such a case, either upgrade LAMMPS or add column names manually.
+
 Input/output files can be gzipped or bzip2'ed.
 """
 
 usage_string = """\
 Usage:
-  dump2aux.py lammps_dump output.cfg
+  ldump2cfg.py lammps_dump output.cfg
      convert LAMMPS dump file to cfg file
 
-  dump2aux.py hist lammps_dump histogram.xy
+  ldump2cfg.py hist lammps_dump histogram.xy
         this may not work now
 
-  dump2aux.py ey energy_vs_y.histogram
+  ldump2cfg.py ey energy_vs_y.histogram
         write GB energy vs y to gbe_vs_y.hist
 
-  dump2aux.py lammps_dump1 [lammps_dump2 ...]
+  ldump2cfg.py lammps_dump1 [lammps_dump2 ...]
         calculate GB energies
 """
 
@@ -101,7 +110,7 @@ class DumpReader:
         return model.Model(atoms, pbc=pbc, title=title)
 
 
-def dump2cfg(dump_filename, cfg_filename):
+def convert(dump_filename, cfg_filename):
     "converts LAMMPS dump_filename to AtomEye extended CFG file"
     # read header
     dr = DumpReader(dump_filename)
@@ -109,7 +118,7 @@ def dump2cfg(dump_filename, cfg_filename):
     # write header
     cfg = open_any(cfg_filename, "w")
     cfg.write("Number of particles = %d\n" % dr.natoms);
-    cfg.write("# converted by dump2aux.dump2cfg from %s\n" % dump_filename);
+    cfg.write("# converted by gosam.ldump2cfg from %s\n" % dump_filename);
     cfg.write("# full original path: %s\n" % os.path.abspath(dump_filename));
     cfg.write("A = 1.0 Angstrom (basic length-scale)\n")
     for i in range(3):
@@ -312,7 +321,7 @@ if __name__ == "__main__":
         gbe = calculate_gb_energy(sys.argv[2], sys.argv[3])
         print "GB energy: ", round(gbe, 4)
     elif len(sys.argv) == 3 and ".cfg" in sys.argv[2]:
-        dump2cfg(sys.argv[1], sys.argv[2])
+        convert(sys.argv[1], sys.argv[2])
     elif len(sys.argv) == 6 and sys.argv[1] == "disl":
         calculate_dislocation_energy(dump_filename=sys.argv[2],
                                      y0=float(sys.argv[3]),
