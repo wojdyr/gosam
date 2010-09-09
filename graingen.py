@@ -375,7 +375,7 @@ class CuttedGrain(FreshModel):
             + "\n\nOperations:\n  " + "\n  ".join(self.operations)
 
 
-    def export_for_qhull(self, with_spheres):
+    def export_for_qhull(self):
         planes = []
         for i in self.surfaces:
             planes += i.get_planes()
@@ -390,8 +390,8 @@ class CuttedGrain(FreshModel):
 
 
     def show_in_geomview(self):
-        # it ignores sphere surfaces
-        t = self.export_for_qhull(with_spheres=False)
+        # it shows cubes instead of spheres
+        t = self.export_for_qhull()
         p = Popen(["qhull H Fp | qhull G"], shell=True, bufsize=bufsize,
                           stdin=PIPE, stdout=PIPE, close_fds=True)
         #  H - qhalf
@@ -415,7 +415,7 @@ class CuttedGrain(FreshModel):
 
     def get_vertices(self):
         "get vertices of convex hull that contains the grain"
-        t = self.export_for_qhull(with_spheres=True)
+        t = self.export_for_qhull()
         p = Popen(["qhull H Fp"],
                   shell=True, stdin=PIPE, stdout=PIPE)
         p.stdin.write(t)
