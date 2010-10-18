@@ -446,7 +446,7 @@ def export_as_poscar(configuration, f):
 
 
 def import_poscar(ifile):
-    first_line = ifile.readline().strip()
+    first_line = ifile.readline().split("#")[0].strip()
     # by our convention, first line contains symbols of elements
     species = first_line.split()
     scaling_factor = float(ifile.readline())
@@ -464,8 +464,16 @@ def import_poscar(ifile):
     atom_count = [int(i) for i in line.split()]
 
     # check if it's possible that the species above are set correctly
-    assert len(species) == len(atom_count), \
-            "POSCAR import: first line should contain (only) symbols of atoms"
+    if len(species) != len(atom_count):
+        print """\
+Error: the first line should contain symbols of atoms.
+
+POSCAR/CONTCAR files have no atomic symbols.  We use convention that the first
+line (which is a comment line) contains atomic symbols in the order used in the
+6th line (the 6th line supplies the number of atoms per atomic species).
+The actual comment can be given after '#', e.g.
+C Si # cubic SiC"""
+        sys.exit()
 
     H = numpy.array(pbc, float)
 
