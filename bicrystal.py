@@ -34,7 +34,9 @@ Usage:
    * vacuum:length - vacuum in z direction. Makes 2D slab with z dimension
              increased by the length.
    * shift:dx,dy,dz - shift nodes in unit cell.
-   * lattice:name - e.g. sic
+   * lattice:name - e.g. SiC. For heterophase boundaries, two names should be
+                    separated by comma without spaces (e.g. lattice:Cu,Fe).
+                    In this case one of the grains may not fit well into PBC.
    * edge:z1,z2 - Removes atoms that have y in lower half of the box and 
              z1 < z < z2. There is a chance that this will become an edge 
              dislocation after squeezing or running high temperature MD.
@@ -52,7 +54,6 @@ import math
 from math import sin, cos, pi, atan, sqrt, degrees, radians, asin, acos, ceil
 import sys
 from copy import deepcopy
-import random
 import numpy
 from numpy import dot, array, identity, inner, zeros
 from numpy import linalg
@@ -62,19 +63,10 @@ import csl
 from rotmat import rodrigues, print_matrix, round_to_multiplicity
 
 
-random.seed(12345)
-
-
 class Bicrystal(OrthorhombicPbcModel):
-    def __init__(self, lattice, dim, rot_u, rot_b, title):
-        OrthorhombicPbcModel.__init__(self, lattice, dim, title=title)
-        self.mono_u = RotatedMonocrystal(deepcopy(lattice), dim, rot_u)
-        lattice2 = deepcopy(lattice)
-
-        # if we want anti-phase GB in binary systems, we can swap two species.
-        #if lattice2.count_species() == 2:
-        #    lattice2.swap_node_atoms_names()
-
+    def __init__(self, lattice1, lattice2, dim, rot_u, rot_b, title):
+        OrthorhombicPbcModel.__init__(self, lattice1, dim, title=title)
+        self.mono_u = RotatedMonocrystal(lattice1, dim, rot_u)
         self.mono_b = RotatedMonocrystal(lattice2, dim, rot_b)
 
 
@@ -118,6 +110,7 @@ class BicrystalOptions:
         self.lattice_name = "sic"
         self.lattice_shift = None
         self.edge = None
+        self.antiphase = False # unused
 
 
     def parse_sigma_and_find_theta(self, sigma_arg):
@@ -297,12 +290,27 @@ def main():
     invrot = rot.transpose()
     assert (numpy.abs(invrot - linalg.inv(rot)) < 1e-9).all(), "%s != %s" % (
                                                      invrot, linalg.inv(rot))
-    lattice = get_named_lattice(opts.lattice_name)
-    if opts.lattice_shift:
-        lattice.shift_nodes(opts.lattice_shift)
-    a = lattice.unit_cell.a
     #print "hack warning: min_dim[1] /= 2."
     #min_dim[1] /= 2.
+
+    if "," in opts.lattice_name:
+        name1, name2 = opts.lattice_name.split(",")
+        lattice1 = get_named_lattice(name1)
+        lattice2 = get_named_lattice(name2)
+    else:
+        lattice1 = get_named_lattice(opts.lattice_name)
+        lattice2 = deepcopy(lattice1)
+
+    if opts.lattice_shift:
+        lattice1.shift_nodes(opts.lattice_shift)
+        lattice2.shift_nodes(opts.lattice_shift)
+
+    # the anti-phase GB can be made by swapping two species in one grain
+    if opts.antiphase:
+        assert lattice2.count_species() == 2
+        lattice2.swap_node_atoms_names()
+
+    a = lattice1.unit_cell.a
     opts.find_dim([i * a for i in min_dim])
 
     #rot_mat1 = rodrigues(opts.axis, rot1)
@@ -314,13 +322,13 @@ def main():
 
     title = get_command_line()
     if opts.mono1:
-        config = RotatedMonocrystal(lattice, opts.dim, rot_mat1,
+        config = RotatedMonocrystal(lattice1, opts.dim, rot_mat1,
                                     title=title)
     elif opts.mono2:
-        config = RotatedMonocrystal(lattice, opts.dim, rot_mat2,
+        config = RotatedMonocrystal(lattice2, opts.dim, rot_mat2,
                                     title=title)
     else:
-        config = Bicrystal(lattice, opts.dim, rot_mat1, rot_mat2,
+        config = Bicrystal(lattice1, lattice2, opts.dim, rot_mat1, rot_mat2,
                            title=title)
     config.generate_atoms(z_margin=opts.vacuum)
 
@@ -364,31 +372,6 @@ def main():
         return
 
     config.export_atoms(opts.output_filename)
-
-
-#def get_random_rotation():
-#    v = [1, 1, 1]
-#    while inner(v, v) > 1:
-#        for i in range(3):
-#            v[i] = random.random()
-#    theta = random.uniform(0, pi)
-#    rot_mat = rodrigues(v, theta)
-#    return rot_mat
-#
-#
-## outdated
-#def random_bicrystal():
-#    lattice = make_default_lattice()
-#    dim = [100, 100, 200]
-#    rot1 = get_random_rotation()
-#    rot2 = get_random_rotation()
-#    config = Bicrystal(lattice, dim, rot1, rot2)
-#    config.generate_atoms()
-#    cryst_min_dist = lattice.unit_cell.a * sqrt(3) / 4 # in zinc blende
-#    config.remove_close_neighbours(0.8 * cryst_min_dist)
-#    #config.export_atoms("bicr.xyz", format="xmol")
-#    config.export_atoms("bicr.cfg", format="atomeye")
-
 
 
 if __name__ == '__main__':
