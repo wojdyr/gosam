@@ -28,62 +28,66 @@ def make_lattice(cell, node_pos, node_atoms):
     return lattice
 
 
-def make_simple_cubic_lattice(atom_name, a):
+def make_simple_cubic_lattice(symbol, a):
     cell = graingen.CubicUnitCell(a)
-    node = graingen.Node((0.0, 0.0, 0.0), [(atom_name, 0.0, 0.0, 0.0)])
+    node = graingen.Node((0.0, 0.0, 0.0), [(symbol, 0.0, 0.0, 0.0)])
     return graingen.CrystalLattice(cell, [node])
 
-def make_fcc_lattice(atom_name, a):
+def make_fcc_lattice(symbol, a):
     cell = graingen.CubicUnitCell(a)
     node_pos = graingen.fcc_nodes[:]
-    node_atoms = [ (atom_name, 0.0, 0.0, 0.0) ]
+    node_atoms = [ (symbol, 0.0, 0.0, 0.0) ]
     return make_lattice(cell, node_pos, node_atoms)
 
-def make_bcc_lattice(atom_name, a):
+def make_bcc_lattice(symbol, a):
     cell = graingen.CubicUnitCell(a)
     node_pos = graingen.bcc_nodes[:]
-    node_atoms = [ (atom_name, 0.0, 0.0, 0.0) ]
+    node_atoms = [ (symbol, 0.0, 0.0, 0.0) ]
     return make_lattice(cell, node_pos, node_atoms)
 
 
-def make_sic_lattice(a):
+def make_zincblende_lattice(symbols, a):
+    assert len(symbols) == 2
     cell = graingen.CubicUnitCell(a)
     # nodes in unit cell (as fraction of unit cell parameters)
     node_pos = graingen.fcc_nodes[:]
     # atoms in node (as fraction of unit cell parameters)
     node_atoms = [
-        ("Si", 0.0, 0.0, 0.0),
-        ("C",  0.25,0.25,0.25),
+        (symbols[0], 0.0, 0.0, 0.0),
+        (symbols[1], 0.25,0.25,0.25),
     ]
     return make_lattice(cell, node_pos, node_atoms)
 
-def make_sic_polytype_lattice(polytype="AB"):
-    print "---> Preparing SiC polytype " + polytype
-    #a = 3.073
-    #h = 2.51
-    a_c = 4.359 # lattice parameter for cubic SiC
-    a = a_c / sqrt(2)
-    h = a_c / sqrt(3)
+
+def make_sic_polytype_lattice(symbols, a, h, polytype):
+    """a: hexagonal lattice parameter 
+       h: distance between atomic layers
+       polytype: a string like "AB" or "ABCACB",
+    """
+    assert len(symbols) == 2
+    # in the case of 3C (ABC) polytype with cubic lattice a_c:
+    # a = a_c / sqrt(2); h = a_c / sqrt(3)
     cell, nodes = graingen.generate_polytype(a=a, h=h, polytype=polytype)
     #atoms in node (as fraction of (a,a,h) parameters)
     node_atoms = [
-        ("Si", 0.0, 0.0, 0.0),
-        ("C",  0.0, 0.0, 0.75 / len(polytype)),
+        (symbols[0], 0.0, 0.0, 0.0),
+        (symbols[1], 0.0, 0.0, 0.75 / len(polytype)),
     ]
     return make_lattice(cell, nodes, node_atoms)
 
-def make_diamond_lattice(atom_name, a):
+def make_diamond_lattice(symbol, a):
     cell = graingen.CubicUnitCell(a)
     node_pos = get_diamond_node_pos()
-    node_atoms = [ (atom_name, 0.0, 0.0, 0.0) ]
+    node_atoms = [ (symbol, 0.0, 0.0, 0.0) ]
     return make_lattice(cell, node_pos, node_atoms)
 
-def make_nacl_lattice(a):
+def make_nacl_lattice(symbols, a):
+    assert len(symbols) == 2
     cell = graingen.CubicUnitCell(a)
     node_pos = graingen.fcc_nodes[:]
     node_atoms = [
-        ("Na", 0.0, 0.0, 0.0),
-        ("Cl", 0.5, 0.5, 0.5),
+        (symbols[0], 0.0, 0.0, 0.0),
+        (symbols[1], 0.5, 0.5, 0.5),
     ]
     return make_lattice(cell, node_pos, node_atoms)
 
@@ -151,7 +155,7 @@ class RotatedMonocrystal(OrthorhombicPbcModel):
 
 # primitive adjusting of PBC box for [010] rotation
 def test_rotmono_adjust():
-    lattice = make_sic_lattice(4.36)
+    lattice = make_zincblende_lattice(symbols=("Si","C"), a=4.36)
     a = lattice.unit_cell.a
     dimensions = [10*a, 10*a, 10*a]
     theta = radians(float(sys.argv[1]))
@@ -185,25 +189,28 @@ def mono(lattice, nx, ny, nz):
     config.generate_atoms()
     return config
 
-
+# To change lattice parameters or atomic symbols just modify this function.
 def get_named_lattice(name):
     name = name.lower()
-    if name == "cu":
-        lattice = make_fcc_lattice(atom_name="Cu", a=3.615)
-    elif name == "fe":
-        lattice = make_bcc_lattice(atom_name="Fe", a=2.87)
-    elif name == "nacl":
-        lattice = make_nacl_lattice(5.64)
-    elif name == "sic":
+    if name == "cu": # Cu (fcc, A1)
+        lattice = make_fcc_lattice(symbol="Cu", a=3.615)
+    elif name == "fe": # Fe (bcc, A2)
+        lattice = make_bcc_lattice(symbol="Fe", a=2.87)
+    elif name == "po": # Polonium (sc, Ah)
+        lattice = make_simple_cubic_lattice(symbol="Po", a=3.35)
+    elif name == "nacl": # NaCl (B1)
+        lattice = make_nacl_lattice(symbols=("Na","Cl"), a=5.64)
+    elif name == "sic": # SiC (zinc blende structure, B3)
         # 4.3210368 A - value for Tersoff (1989) MD potential
         # 4.36 A - real value
-        lattice = make_sic_lattice(a=4.3210368)
-    elif name == "si":
-        lattice = make_diamond_lattice(atom_name="Si", a=5.43)
-    elif name == "diamond":
-        lattice = make_diamond_lattice(atom_name="C", a=3.567)
-    elif name.startswith("sic:"):
-        lattice = make_sic_polytype_lattice(name[4:])
+        lattice = make_zincblende_lattice(symbols=("Si","C"), a=4.3210368)
+    elif name == "si": # Si (diamond structure, A4)
+        lattice = make_diamond_lattice(symbol="Si", a=5.43)
+    elif name == "diamond": # C (diamond structure, A4)
+        lattice = make_diamond_lattice(symbol="C", a=3.567)
+    elif name.startswith("sic:"): # SiC-like (binary, tetrahedral) polytype
+        lattice = make_sic_polytype_lattice(symbols=("Si","C"), a=3.073, h=2.52,
+                                            polytype=name[4:])
     else:
         raise ValueError("Unknown lattice: %s" % name)
     return lattice
