@@ -51,6 +51,13 @@ def _get_orthorhombic_pbc(m):
         ortho = numpy.diag(numpy.diagonal(ortho))
         return ortho
 
+def make_drawing_func(probability):
+    if type(probability) is dict:
+        return lambda atom: random.random() < probability.get(atom.name, -1)
+    elif type(probability) in (int, long, float):
+        return lambda atom: random.random() < probability
+    else:
+        return lambda atom: random.random() < probability(atom)
 
 class Model:
     """Configuration -- atoms, PBC (only parallelepiped)"""
@@ -75,24 +82,17 @@ class Model:
 
 
     def make_vacancies(self, vacancy_probability):
-        " vacancy_probability: {atom_name: float <0,1>} "
+        """vacancy_probability is either number
+           or dict: {atom_name: float <0,1>} or function atom -> float <0,1>.
+        """
         if not vacancy_probability:
             return
         len_before = len(self.atoms)
-        for idx, atom in enumerate(self.atoms):
-            if type(vacancy_probability) is dict:
-                try:
-                    p = vacancy_probability[atom.name]
-                except KeyError:
-                    continue
-            else: # vacancy_probability is function
-                p = vacancy_probability(atom)
-            if random.random() < p:
-                #print idx, atom
-                del self.atoms[idx]
+        func = make_drawing_func(vacancy_probability)
+        self.atoms = [a for a in self.atoms if not func(a)]
         len_after = len(self.atoms)
         n_vacancies = len_before-len_after
-        print "%i atoms were deleted (vacancies were made). %i atoms left." % (
+        print "Vacancies: %i atoms were deleted. %i atoms left." % (
                                                         n_vacancies, len_after)
         self.log("vacancies where generated (%i of %i) using probabilities: %s"
                    % (n_vacancies, len_before, vacancy_probability))
@@ -104,7 +104,7 @@ class Model:
             return
         for i in self.atoms:
             modifier(i)
-        self.log("atom positions modified using function: \n\t"
+        self.log("atoms modified using function: \n\t"
                            + inspect.getsource(modifier).replace("\n", "\n\t"))
 
 
