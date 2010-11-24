@@ -19,7 +19,7 @@ usage_string = """\
 
 import sys
 import functools
-from math import degrees, atan, sqrt, pi
+from math import degrees, atan, sqrt, pi, ceil
 import numpy
 from numpy import array, identity, dot, inner, cross
 from numpy.linalg import inv, det, solve
@@ -79,12 +79,11 @@ def get_theta_m_n_list(hkl, sigma, verbose=False):
 
     # From Grimmer, Acta Cryst. (1984). A40, 108-112
     #    S = m^2 + (u^2+v^2+w^2) n^2     (eq. 2)
-    #    4 * 3 = 3^2 + 3
     #    S = alpha * Sigma               (eq. 4)
     #   where alpha = 1, 2 or 4.
     # Since (u^2+v^2+w^2) n^2 > 0,
     # thus alpha * Sigma > m^2    =>   m^2 < 4 * Sigma
-    max_m = int(sqrt(4*sigma))
+    max_m = int(ceil(sqrt(4*sigma)))
 
     for m in range(max_m):
         for n in range(1, max_m):
