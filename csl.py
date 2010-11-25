@@ -377,14 +377,14 @@ def find_orthorhombic_pbc(M):
     assert is_integer(M), M
     M = M.round().astype(int)
 
-    n = 20
+    # We are searching for solution by iteration over possible b,d,c values,
+    # -n < b,d,c < n. Increasing n obviously slows down the program.
+    n = 25
+
     pbc = None
     max_sq = 0
     x, y, z = M
 
-    # We will try adding a multiple of one column to another.
-    # The column that is to be added can be multiplied by fractional number,
-    # if the result is still integral
     x_ = x / gcd_array(x)
     y_ = y / gcd_array(y)
     z_ = z / gcd_array(z)
@@ -407,12 +407,25 @@ def find_orthorhombic_pbc(M):
                 aa = array([[mxy[0],mxy[2]],
                             [myz[0],myz[2]]])
                 bb = array([-mxy[1], -myz[1]])
+                aa_invertible = (abs(det(aa)) > 1e-7)
                 for c in plus_minus_gen(n):
-                    # ----- new code (2010.08)
                     #  z2 . y2 == 0 and x2 . y2 == 0 =>
                     #       f * mxy[0] + g * mxy[2] == -c * mxy[1] 
                     #       f * myz[0] + g * myz[2] == -c * myz[1] 
-                    fg = solve(aa, c * bb)
+                    if aa_invertible:
+                        fg = solve(aa, c * bb)
+                    else: # special case, i'm not sure if handled properly
+                        for f in zero_plus_minus_gen(n):
+                            g_ = - (myz[0] * f + myz[1] * c) / float(myz[2])
+                            g = int(round(g_))
+                            if abs(g - g_) < 1e-7:
+                                y2 = dot([f,c,g], My)
+                                if inner(x2, y2) == 0:
+                                    fg = array([f, g])
+                                    break
+                        else:
+                            continue
+
                     if is_integer(fg) and (numpy.abs(fg) < n - 0.5).all():
                         f, g = fg.round().astype(int)
                         y2 = dot([f,c,g], My)
@@ -420,24 +433,17 @@ def find_orthorhombic_pbc(M):
                         if pbc is None or max_sq_ < max_sq:
                             pbc = array([x2, y2, z2])
                             max_sq = max_sq_
-                    # ----- old code
-                    #for f in zero_plus_minus_gen(n):
-                    #    g_ = - (myz[0] * f + myz[1] * c) / float(myz[2])
-                    #    g = int(round(g_))
-                    #    if abs(g - g_) < 1e-7:
-                    #        y2 = dot([f,c,g], My)
-                    #        if inner(x2, y2) == 0:
-                    #            max_sq_ = max(dot(x2,x2), dot(y2,y2),
-                    #                          dot(z2,z2))
-                    #            if pbc is None or max_sq_ < max_sq:
-                    #                pbc = array([x2, y2, z2])
-                    #                max_sq = max_sq_
     if pbc is None:
         print "No orthorhombic PBC found."
         sys.exit()
 
     if doubleM:
         pbc /= 2.
+
+    # we prefer determinant to be positive (negative one would later cause
+    # inversion in addition to rotation)
+    if det(pbc) < 0:
+        pbc[0] = -pbc[0]
 
     # optionally swap x2 with y2
     id = identity(3)
