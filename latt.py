@@ -104,9 +104,9 @@ class UnitCell:
         ])
 
     def rotate(self, rot_mat):
-        assert abs(linalg.det(rot_mat) - 1) < 1e-6, "not a pure rotation matrix"
         assert (abs(transpose(rot_mat) - linalg.inv(rot_mat)) < 1e-6).all(), \
                 "not orthogonal"
+        assert abs(linalg.det(rot_mat) - 1) < 1e-6, "not a pure rotation matrix"
         self.M_1 = dot(self.M_1, rot_mat)
         self.M = dot(transpose(rot_mat), self.M)
         #print "1=", dot(self.M_1, self.M)
