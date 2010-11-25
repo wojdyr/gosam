@@ -231,7 +231,7 @@ def parse_args():
             try:
                 z1, z2 = i[5:].split(",")
                 opts.edge = (float(z1), float(z2))
-            except TypeError, ValueError:
+            except (TypeError, ValueError):
                 raise ValueError("Wrong format of edge parameter")
         else:
             raise ValueError("Unknown option: %s" % i)
@@ -317,8 +317,8 @@ def main():
     #rot_mat2 = rodrigues(opts.axis, rot2)
     rot_mat1 = dot(linalg.inv(R), invrot)
     rot_mat2 = invrot
-    #print "rot1", rot_mat1
-    #print "rot2", rot_mat2
+    #print "rot1", "det=%g" % linalg.det(rot_mat1), rot_mat1
+    #print "rot2", "det=%g" % linalg.det(rot_mat2), rot_mat2
 
     title = get_command_line()
     if opts.mono1:
