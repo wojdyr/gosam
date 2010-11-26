@@ -212,8 +212,7 @@ def make_parallel_to_axis(T, col, axis):
     #print "c", c
     sel_val = min([i for i in c if i != 0], key=abs)
     if abs(sel_val) != 1: # det must be changed
-        print "Volume increased by %i" % abs(sel_val)
-        assert 0, "abs(sel_val) = %s != 1" % abs(sel_val)
+        print "\n\tWARNING: Volume increased by %i" % abs(sel_val)
     idx = c.tolist().index(sel_val)
     #print idx, sel_val
     if idx != col:
@@ -378,8 +377,9 @@ def find_orthorhombic_pbc(M):
     M = M.round().astype(int)
 
     # We are searching for solution by iteration over possible b,d,c values,
-    # -n < b,d,c < n. Increasing n obviously slows down the program.
-    n = 25
+    # -max_multiplier < b,d,c < max_multiplier.
+    # Increasing max_multiplier obviously slows down the program.
+    max_multiplier = 27
 
     pbc = None
     max_sq = 0
@@ -397,8 +397,8 @@ def find_orthorhombic_pbc(M):
     z2 = z_ # previously: z2 = z
     mxz = dot(Mx, z2)
     myz = dot(My, z2)
-    for b in plus_minus_gen(n):
-        for d in zero_plus_minus_gen(n):
+    for b in plus_minus_gen(max_multiplier):
+        for d in zero_plus_minus_gen(max_multiplier):
             e_ = - (mxz[0] * b + mxz[1] * d) / float(mxz[2])
             e = int(round(e_))
             if abs(e - e_) < 1e-7:
@@ -408,14 +408,14 @@ def find_orthorhombic_pbc(M):
                             [myz[0],myz[2]]])
                 bb = array([-mxy[1], -myz[1]])
                 aa_invertible = (abs(det(aa)) > 1e-7)
-                for c in plus_minus_gen(n):
+                for c in plus_minus_gen(max_multiplier):
                     #  z2 . y2 == 0 and x2 . y2 == 0 =>
                     #       f * mxy[0] + g * mxy[2] == -c * mxy[1] 
                     #       f * myz[0] + g * myz[2] == -c * myz[1] 
                     if aa_invertible:
                         fg = solve(aa, c * bb)
                     else: # special case, i'm not sure if handled properly
-                        for f in zero_plus_minus_gen(n):
+                        for f in zero_plus_minus_gen(max_multiplier):
                             g_ = - (myz[0] * f + myz[1] * c) / float(myz[2])
                             g = int(round(g_))
                             if abs(g - g_) < 1e-7:
@@ -426,7 +426,8 @@ def find_orthorhombic_pbc(M):
                         else:
                             continue
 
-                    if is_integer(fg) and (numpy.abs(fg) < n - 0.5).all():
+                    if is_integer(fg) and (
+                                  numpy.abs(fg) < max_multiplier - 0.5).all():
                         f, g = fg.round().astype(int)
                         y2 = dot([f,c,g], My)
                         max_sq_ = max(dot(x2,x2), dot(y2,y2), dot(z2,z2))
@@ -434,7 +435,7 @@ def find_orthorhombic_pbc(M):
                             pbc = array([x2, y2, z2])
                             max_sq = max_sq_
     if pbc is None:
-        print "No orthorhombic PBC found."
+        print "No orthorhombic PBC found. (you may increase max_multiplier)"
         sys.exit()
 
     if doubleM:

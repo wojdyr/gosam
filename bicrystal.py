@@ -164,6 +164,19 @@ class BicrystalOptions:
         self.dim = dim
 
 
+def print_boundary_type(axis, plane, theta):
+    if (plane == axis * sum(plane) / sum(axis)).all():
+        bt = "twist"
+    elif inner(plane, axis) == 0:
+        R = rodrigues(axis, theta, verbose=False)
+        p2 = dot(linalg.inv(R), plane)
+        plane2 = csl.scale_to_integers(p2)
+        bt = "tilt (%i %i %i) (%i %i %i)" % (tuple(plane) + tuple(plane2))
+    else:
+        bt = "mixed"
+    return bt
+
+
 def parse_args():
     if len(sys.argv) < 7:
         print usage
@@ -188,6 +201,8 @@ def parse_args():
     else:
         opts.plane = csl.parse_miller(plane)
     print "-------> boundary plane: (%i %i %i)" % tuple(opts.plane)
+    bt = print_boundary_type(opts.axis, opts.plane, opts.theta)
+    print "         boundary type:", bt
 
     opts.req_dim = [float(eval(i, math.__dict__)) for i in sys.argv[4:7]]
 
@@ -274,8 +289,9 @@ def main():
     # * PBC box must be orthonormal
     # * boundaries must be perpendicular to z axis of PBC box
 
+    print "CSL cell with z || [%s %s %s]" % tuple(opts.plane),
     Cp = csl.make_parallel_to_axis(C, col=2, axis=opts.plane)
-    print_matrix("CSL cell with z || [%s %s %s]" % tuple(opts.plane), Cp)
+    print_matrix("", Cp)
 
     min_pbc = csl.find_orthorhombic_pbc(Cp)
     print_matrix("Minimal(?) orthorhombic PBC", min_pbc)
