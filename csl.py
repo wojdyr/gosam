@@ -248,7 +248,8 @@ def find_smallest_real_multiplier(a, max_n=1000):
     """return the smallest positive real f such that matrix `a' multiplied
        by f is an integer matrix
     """
-    m = min(abs(i) for i in a if i != 0) # |the smallest non-zero element|
+    # |the smallest non-zero element|
+    m = min(abs(i) for i in a if abs(i) > 1e-9)
     for i in range(1, max_n):
         t = i / float(m)
         if is_integer(t * a):
