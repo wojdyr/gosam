@@ -19,6 +19,7 @@ from optparse import OptionParser
 import bz2
 import gzip
 import numpy
+import random
 from numpy import linalg
 
 from mdprim import AtomVF
@@ -602,6 +603,9 @@ def parse_options(argv):
                       help="if in PBC, select image in (-h/2, h/2)")
     parser.add_option("--filter",
                       help="criterion for leaving atoms, e.g. '15 < z < 30'")
+    parser.add_option("--vibrate", type="float", metavar="SIGMA",
+                      help="random displacements (Gaussian distribution, "
+                           "std. dev. equal SIGMA in every direction)")
     parser.add_option("--translate", metavar="TR",
                       help="change atomic symbols, e.g. 'Si->C, C->Si'")
     parser.add_option("--reference", help="adds dx, dy and dz properties",
@@ -667,6 +671,13 @@ def process_input(input_filename, options):
         print len(cfg.atoms), "atoms left."
         if len(cfg.atoms) == 0:
             sys.exit()
+
+    if options.vibrate:
+        sigma = options.vibrate
+        for atom in cfg.atoms:
+            atom.pos += (random.gauss(0, sigma),
+                         random.gauss(0, sigma),
+                         random.gauss(0, sigma))
 
     if options.translate:
         tr_map = parse_translate_option(options.translate)
