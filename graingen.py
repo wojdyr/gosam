@@ -392,7 +392,7 @@ class CuttedGrain(FreshModel):
     def show_in_geomview(self):
         # it shows cubes instead of spheres
         t = self.export_for_qhull()
-        p = Popen(["qhull H Fp | qhull G"], shell=True, bufsize=bufsize,
+        p = Popen("qhull H Fp | qhull G", shell=True, bufsize=bufsize,
                           stdin=PIPE, stdout=PIPE, close_fds=True)
         #  H - qhalf
         # Fp - print points at halfspace intersections
@@ -416,7 +416,7 @@ class CuttedGrain(FreshModel):
     def get_vertices(self):
         "get vertices of convex hull that contains the grain"
         t = self.export_for_qhull()
-        p = Popen(["qhull H Fp"],
+        p = Popen("qhull H Fp",
                   shell=True, stdin=PIPE, stdout=PIPE)
         p.stdin.write(t)
         p.stdin.close()
