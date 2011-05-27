@@ -6,15 +6,18 @@ Coincidence Site Lattice related utilities.
 """
 usage_string = """\
  Usage:
-  csl.py hkl [limit=M] - list all CSL sigmas up to limit (default=1000)
-                         with corresponding angle
-                             examples: csl.py 100
-                                       csl.py 100 limit=50
+  csl.py hkl [limit=M] [max_angle=A] - list all CSL boundaries with rotation
+                                       axis [hkl], sigma < M (default: 1000)
+                                       and angle < A (default: 90)
 
   csl.py hkl sigma     - details about CSL with given sigma
-                         example: csl.py 111 31
 
   csl.py hkl m n       - details about CSL generated with integers m and n
+
+ Examples:
+  csl.py 100                            # generates a very long list of GBs
+  csl.py 100 limit=50 max_angle=45      # generates a shorter list
+  csl.py 111 31                         # show details of the specified GB
 """
 
 import sys
@@ -481,7 +484,8 @@ def pc2fcc(Cp):
     #print_matrix("Z (in pc2fcc)", Z.transpose())
     return dot(Z, Cp)
 
-def print_list(hkl, max_angle=45., limit=1000):
+def print_list(hkl, max_angle, limit):
+    print "[max. sigma: %s, max angle: %s deg.]" % (limit, max_angle)
     data = []
     for i in range(limit):
         tt = get_theta_m_n_list(hkl, i, verbose=False)
@@ -521,26 +525,37 @@ def print_details(hkl, m, n):
 
 
 def main():
-    argc = len(sys.argv)
-    if argc < 2 or argc > 4:
+    # parse keyword options
+    limit=1000
+    max_angle=90
+    for a in sys.argv[1:]:
+        if '=' in a:
+            key, value = a.split("=", 1)
+            if key == "limit":
+                limit = int(value)
+            elif key == "max_angle":
+                max_angle = float(value)
+            else:
+                raise KeyError("Unknown option: " + key)
+
+    args = [a for a in sys.argv[1:] if '=' not in a]
+    if len(args) < 1 or len(args) > 3:
         print usage_string
         return
 
-    hkl = parse_miller(sys.argv[1])
+    hkl = parse_miller(args[0])
 
-    if argc == 2:
-        print_list(hkl)
-    elif argc == 3 and sys.argv[2].startswith("limit="):
-        print_list(hkl, limit=int(sys.argv[2][6:]))
-    elif argc == 3:
-        sigma = int(sys.argv[2])
+    if len(args) == 1:
+        print_list(hkl, max_angle=max_angle, limit=limit)
+    elif len(args) == 2:
+        sigma = int(args[1])
         thetas = get_theta_m_n_list(hkl, sigma, verbose=False)
         thetas.sort(key = lambda x: x[0])
         for theta, m, n in thetas:
             print "m=%2d  n=%2d %7.3f" % (m, n, degrees(theta))
         if not thetas:
             print "Not found."
-    elif argc == 4:
+    elif len(args) == 3:
         m = int(sys.argv[2])
         n = int(sys.argv[3])
         print_details(hkl, m, n)
