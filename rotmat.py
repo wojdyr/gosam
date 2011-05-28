@@ -27,7 +27,7 @@ def rodrigues(a, angle, verbose=False):
 
 
 def print_matrix(text, M):
-    print "%s: (det=%s):\n%s" % (text, linalg.det(M), M)
+    print "%s (det=%s):\n%s" % (text, linalg.det(M), M)
 
 
 def round_to_multiplicity(m, val):

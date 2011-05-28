@@ -36,6 +36,7 @@ def gcd(a, b):
         a, b = b%a, a
     return b
 
+# 0 is coprime only with 1
 def coprime(a, b):
     return gcd(a,b) in (0, 1)
 
@@ -67,7 +68,6 @@ def get_cubic_sigma(hkl, m, n=1):
 
 def get_cubic_theta(hkl, m, n=1):
     h,k,l = hkl
-    assert n==1 or coprime(h,k) and coprime(k,l) and coprime(h,l)
     sqsum = h*h + k*k + l*l
     assert sqsum > 0
     if m > 0:
