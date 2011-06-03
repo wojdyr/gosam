@@ -507,9 +507,12 @@ C Si # cubic SiC"""
 
 def export_as_gulp(configuration, f):
     "export coordinates in GULP input format"
+    print >>f, "opti" # replace this keyword with GULP keywords you need
     print >>f, ""
-    print >>f, "# title:", configuration.title
-    print >>f, "# Configuration"
+    print >>f, "title"
+    print >>f, configuration.title
+    print >>f, "end"
+    print >>f, ""
     print >>f, "cell"
     pbc = get_orthorhombic_pbc(configuration.pbc)
     print >>f, "%.6g %.6g %.6g %g %g %g" % (pbc[0], pbc[1], pbc[2],
