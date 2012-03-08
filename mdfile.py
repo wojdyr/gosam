@@ -438,12 +438,13 @@ def export_as_poscar(configuration, f):
         for i in configuration.atoms:
             if i.name == sp:
                 s = numpy.dot(i.pos, H_1) % 1.0
+                line = "%19.15f %19.15f %19.15f" % tuple(s)
                 if selective_dynamics:
-                    allow_change = [('T' if i else 'F') for i in s[3:6]]
-                    print >>f, "%19.15f %19.15f %19.15f %s %s %s" % (
-                                s[0], s[1], s[2], c[0], c[1], c[2])
-                else:
-                    print >>f, "%19.15f %19.15f %19.15f" % tuple(s)
+                    sd_symbols = { True: 'T', False: 'F' }
+                    line += " %s %s %s" % (sd_symbols[i.allow_change[0]],
+                                           sd_symbols[i.allow_change[1]],
+                                           sd_symbols[i.allow_change[2]])
+                print >>f, line
 
 
 def import_poscar(ifile):

@@ -120,7 +120,7 @@ class Model:
         if shape == (3,3):
             pv = self.pbc
         elif shape == (3,):
-            pv = np.diag(self.pbc)
+            pv = numpy.diag(self.pbc)
         else:
             raise ValueError("PBC is not 3 dimensional")
         # move all atoms into the box defined by the pbc

@@ -4,7 +4,7 @@
 Atom and CellMethod classes.
 """
 
-from math import sqrt, acos, degrees
+from math import sqrt, acos
 import numpy
 from numpy import array, inner
 

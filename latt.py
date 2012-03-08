@@ -4,7 +4,7 @@
 CrystalLattice, UnitCell, etc.
 """
 
-from math import cos, sin, acos, asin, sqrt, pi, floor, ceil, radians, degrees
+from math import cos, sin, acos, sqrt, radians, degrees
 from numpy import linalg
 from numpy import array, dot, transpose
 

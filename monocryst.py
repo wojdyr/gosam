@@ -3,14 +3,13 @@
 # Licence: GNU General Public License version 2
 
 import sys
-from math import sin, cos, pi, atan, sqrt, degrees, radians, asin, acos
+from math import sin, cos, sqrt, degrees, radians, asin
 from copy import deepcopy
 from optparse import OptionParser
 from numpy import dot, array, identity, minimum, maximum
 
 import graingen
 import mdprim
-from csl import find_orthorhombic_pbc
 from rotmat import round_to_multiplicity
 from utils import get_command_line
 

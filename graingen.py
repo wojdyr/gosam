@@ -392,7 +392,7 @@ class CuttedGrain(FreshModel):
     def show_in_geomview(self):
         # it shows cubes instead of spheres
         t = self.export_for_qhull()
-        p = Popen("qhull H Fp | qhull G", shell=True, bufsize=bufsize,
+        p = Popen("qhull H Fp | qhull G", shell=True,
                           stdin=PIPE, stdout=PIPE, close_fds=True)
         #  H - qhalf
         # Fp - print points at halfspace intersections

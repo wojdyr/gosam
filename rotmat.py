@@ -5,7 +5,7 @@ Mathematical and matrix-related utilities.
 Most notably Rodrigues rotation formula.
 """
 
-from math import cos, sin, acos, asin, sqrt, pi, radians, degrees
+from math import sin, cos, acos, sqrt, degrees
 from numpy import array, dot, inner, identity, linalg, sign
 
 def rodrigues(a, angle, verbose=False):

@@ -51,11 +51,11 @@ caution: the program was tested only for a few cases (may not work in others)
 """
 
 import math
-from math import sin, cos, pi, atan, sqrt, degrees, radians, asin, acos, ceil
+from math import sqrt, degrees, radians, acos, ceil
 import sys
 from copy import deepcopy
 import numpy
-from numpy import dot, array, identity, inner, zeros
+from numpy import dot, identity, inner, zeros
 from numpy import linalg
 from monocryst import RotatedMonocrystal, OrthorhombicPbcModel, \
                      get_command_line, get_named_lattice

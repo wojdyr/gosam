@@ -35,9 +35,7 @@ import sys
 import os.path
 import bz2
 import gzip
-from math import sqrt
 
-from rotmat import StdDev
 from mdprim import AtomVF
 import model
 
@@ -301,11 +299,11 @@ def calc_gbe_vs_y(dump_filename):
         assert bin < nbins
         delta = float(tokens[val_pos]) - e0
         hist[bin] += delta
-    print "GBE:", sum(hist) / area * conversion_eV_A_to_J_m2
+    print "GBE:", sum(hist) / area * conversion_eV_A2_to_J_m2
 
     hist_file = open_any("gbe_vs_y.hist", "w")
     for n, d in enumerate(hist):
-        print >>hist_file, (n+0.5) / nbins, d / area * conversion_eV_A_to_J_m2
+        print >>hist_file, (n+0.5) / nbins, d / area * conversion_eV_A2_to_J_m2
 
 
 if __name__ == "__main__":

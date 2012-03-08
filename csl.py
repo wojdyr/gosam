@@ -24,7 +24,7 @@ import sys
 import functools
 from math import degrees, atan, sqrt, pi, ceil
 import numpy
-from numpy import array, identity, dot, inner, cross
+from numpy import array, identity, dot, inner
 from numpy.linalg import inv, det, solve
 from rotmat import rodrigues, print_matrix
 
