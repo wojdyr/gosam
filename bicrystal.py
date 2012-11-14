@@ -43,9 +43,10 @@ Usage:
 
 Examples:
     bicrystal.py 001 twist 5 20 20 80 twist_s5.cfg
-    bicrystal.py 100 013 5 20 20 80 tilt_s5.cfg
     bicrystal.py 100 m011 5 20 20 80 tilt_s5.cfg
     bicrystal.py 100 0,1,0 theta=90 1 1 1  tmp.cfg
+
+See the wiki for more examples.
 
 caution: the program was tested only for a few cases (may not work in others)
 """
