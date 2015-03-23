@@ -558,7 +558,10 @@ def main():
     elif len(args) == 3:
         m = int(sys.argv[2])
         n = int(sys.argv[3])
-        print_details(hkl, m, n)
+        try:
+            print_details(hkl, m, n)
+        except KeyboardInterrupt:
+            print " Interrupted. Exiting."
 
 
 
