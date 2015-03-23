@@ -1,0 +1,6 @@
+*~
+*.bak
+*.py[co]
+__pycache__/
+cscope.out
+tags
