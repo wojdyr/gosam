@@ -453,9 +453,12 @@ def find_orthorhombic_pbc(M):
     # optionally swap x2 with y2
     id = identity(3)
     if (pbc[1] == id[0]).all() or (pbc[0] == -id[1]).all():
-        pbc[0], pbc[1] = pbc[1], -pbc[0]
+        pbc[[0,1]] = pbc[1], -pbc[0]
     elif (pbc[1] == -id[0]).all() or (pbc[0] == id[1]).all():
-        pbc[0], pbc[1] = -pbc[1], pbc[0]
+        # note that this didn't work:
+        #  pbc[0], pbc[1] = -pbc[1], pbc[0]
+        # because pbc[0] is a view, not copy
+        pbc[[0,1]] = -pbc[1], pbc[0]
 
     return pbc
 
