@@ -12,6 +12,9 @@ gosam is a bunch of Python scripts:
 **Prerequisites:** Python 2 and [numpy](http://numpy.scipy.org/).
 `graingen.py` additionally requires the [qhull](http://www.qhull.org/) program.
 
+**Installation:**
+download, unpack if you've downloaded zip file, and use from command line.
+
 **Usage**:
 See [documentation in the wiki](https://github.com/wojdyr/gosam/wiki)
 and feel free to e-mail me with questions.  Or open Github issue.
