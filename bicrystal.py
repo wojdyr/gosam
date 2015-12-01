@@ -166,7 +166,7 @@ class BicrystalOptions:
 
 
 def print_boundary_type(axis, plane, theta):
-    if (plane == axis * sum(plane) / sum(axis)).all():
+    if (plane * sum(abs(axis)) == axis * sum(abs(plane))).all():
         bt = "twist"
     elif inner(plane, axis) == 0:
         R = rodrigues(axis, theta, verbose=False)
