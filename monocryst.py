@@ -90,6 +90,13 @@ def make_nacl_lattice(symbols, a):
     ]
     return make_lattice(cell, node_pos, node_atoms)
 
+# body centered tetragonal
+def make_bct_lattice(symbol, a, c):
+    cell = graingen.TetragonalUnitCell(a, c)
+    node_pos = graingen.bcc_nodes[:]
+    node_atoms = [ (symbol, 0.0, 0.0, 0.0) ]
+    return make_lattice(cell, node_pos, node_atoms)
+
 class OrthorhombicPbcModel(graingen.FreshModel):
     def __init__(self, lattice, dimensions, title):
         pbc = identity(3) * dimensions
@@ -210,6 +217,8 @@ def get_named_lattice(name):
     elif name.startswith("sic:"): # SiC-like (binary, tetrahedral) polytype
         lattice = make_sic_polytype_lattice(symbols=("Si","C"), a=3.073, h=2.52,
                                             polytype=name[4:])
+    elif name == "sn": # Sn, body-centered tetragonal
+        lattice = make_bct_lattice(symbol="Sn", a=5.83, c=3.18)
     else:
         raise ValueError("Unknown lattice: %s" % name)
     return lattice
