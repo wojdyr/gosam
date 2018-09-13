@@ -9,9 +9,10 @@ from optparse import OptionParser
 from numpy import dot, array, identity, minimum, maximum
 
 import graingen
+import latt
 import mdprim
-from rotmat import round_to_multiplicity
-from utils import get_command_line
+import rotmat
+import utils
 
 def get_diamond_node_pos():
     node_pos = []
@@ -22,24 +23,24 @@ def get_diamond_node_pos():
 
 
 def make_lattice(cell, node_pos, node_atoms):
-    nodes = [graingen.Node(i, node_atoms) for i in node_pos]
-    lattice = graingen.CrystalLattice(cell, nodes)
+    nodes = [latt.Node(i, node_atoms) for i in node_pos]
+    lattice = latt.CrystalLattice(cell, nodes)
     return lattice
 
 
 def make_simple_cubic_lattice(symbol, a):
-    cell = graingen.CubicUnitCell(a)
-    node = graingen.Node((0.0, 0.0, 0.0), [(symbol, 0.0, 0.0, 0.0)])
-    return graingen.CrystalLattice(cell, [node])
+    cell = latt.CubicUnitCell(a)
+    node = latt.Node((0.0, 0.0, 0.0), [(symbol, 0.0, 0.0, 0.0)])
+    return latt.CrystalLattice(cell, [node])
 
 def make_fcc_lattice(symbol, a):
-    cell = graingen.CubicUnitCell(a)
+    cell = latt.CubicUnitCell(a)
     node_pos = graingen.fcc_nodes[:]
     node_atoms = [ (symbol, 0.0, 0.0, 0.0) ]
     return make_lattice(cell, node_pos, node_atoms)
 
 def make_bcc_lattice(symbol, a):
-    cell = graingen.CubicUnitCell(a)
+    cell = latt.CubicUnitCell(a)
     node_pos = graingen.bcc_nodes[:]
     node_atoms = [ (symbol, 0.0, 0.0, 0.0) ]
     return make_lattice(cell, node_pos, node_atoms)
@@ -47,7 +48,7 @@ def make_bcc_lattice(symbol, a):
 
 def make_zincblende_lattice(symbols, a):
     assert len(symbols) == 2
-    cell = graingen.CubicUnitCell(a)
+    cell = latt.CubicUnitCell(a)
     # nodes in unit cell (as fraction of unit cell parameters)
     node_pos = graingen.fcc_nodes[:]
     # atoms in node (as fraction of unit cell parameters)
@@ -66,7 +67,7 @@ def make_sic_polytype_lattice(symbols, a, h, polytype):
     assert len(symbols) == 2
     # in the case of 3C (ABC) polytype with cubic lattice a_c:
     # a = a_c / sqrt(2); h = a_c / sqrt(3)
-    cell, nodes = graingen.generate_polytype(a=a, h=h, polytype=polytype)
+    cell, nodes = latt.generate_polytype(a=a, h=h, polytype=polytype)
     #atoms in node (as fraction of (a,a,h) parameters)
     node_atoms = [
         (symbols[0], 0.0, 0.0, 0.0),
@@ -75,14 +76,14 @@ def make_sic_polytype_lattice(symbols, a, h, polytype):
     return make_lattice(cell, nodes, node_atoms)
 
 def make_diamond_lattice(symbol, a):
-    cell = graingen.CubicUnitCell(a)
+    cell = latt.CubicUnitCell(a)
     node_pos = get_diamond_node_pos()
     node_atoms = [ (symbol, 0.0, 0.0, 0.0) ]
     return make_lattice(cell, node_pos, node_atoms)
 
 def make_nacl_lattice(symbols, a):
     assert len(symbols) == 2
-    cell = graingen.CubicUnitCell(a)
+    cell = latt.CubicUnitCell(a)
     node_pos = graingen.fcc_nodes[:]
     node_atoms = [
         (symbols[0], 0.0, 0.0, 0.0),
@@ -92,10 +93,25 @@ def make_nacl_lattice(symbols, a):
 
 # body centered tetragonal
 def make_bct_lattice(symbol, a, c):
-    cell = graingen.TetragonalUnitCell(a, c)
+    cell = latt.TetragonalUnitCell(a, c)
     node_pos = graingen.bcc_nodes[:]
     node_atoms = [ (symbol, 0.0, 0.0, 0.0) ]
     return make_lattice(cell, node_pos, node_atoms)
+
+def make_lattice_from_cif(filename):
+    try:
+        import gemmi
+    except ImportError:
+        sys.exit('Gemmi is needed to read cif files. Try "pip install gemmi".')
+    st = gemmi.read_atomic_structure(filename)
+    cell = latt.UnitCell(st.cell.a, st.cell.b, st.cell.c,
+                         st.cell.alpha, st.cell.beta, st.cell.gamma, system='')
+    nodes = []
+    for site in st.get_all_unit_cell_sites():
+        pos = (site.fract.x, site.fract.y, site.fract.z)
+        atom = latt.AtomInNode(site.type_symbol)
+        nodes.append(latt.Node(pos, [atom]))
+    return latt.CrystalLattice(cell, nodes)
 
 class OrthorhombicPbcModel(graingen.FreshModel):
     def __init__(self, lattice, dimensions, title):
@@ -178,7 +194,7 @@ def test_rotmono_adjust():
     dimensions[1] = round(dimensions[1] / a) * a
     theta = new_th
 
-    rot_mat = graingen.rodrigues((0,1,0), theta, verbose=False)
+    rot_mat = rotmat.rodrigues((0,1,0), theta, verbose=False)
     config = RotatedMonocrystal(lattice, dimensions, rot_mat)
     config.generate_atoms()
     config.export_atoms("monotest.cfg", format="atomeye")
@@ -186,17 +202,19 @@ def test_rotmono_adjust():
 
 def mono(lattice, nx, ny, nz):
     min_dim = lattice.unit_cell.get_orthorhombic_supercell()
-    dim = [round_to_multiplicity(min_dim[0], 10*nx),
-           round_to_multiplicity(min_dim[1], 10*ny),
-           round_to_multiplicity(min_dim[2], 10*nz)]
+    dim = [rotmat.round_to_multiplicity(min_dim[0], 10*nx),
+           rotmat.round_to_multiplicity(min_dim[1], 10*ny),
+           rotmat.round_to_multiplicity(min_dim[2], 10*nz)]
     print "dimensions [A]:", dim[0], dim[1], dim[2]
     config = RotatedMonocrystal(deepcopy(lattice), dim, rot_mat=None,
-                                title=get_command_line())
+                                title=utils.get_command_line())
     config.generate_atoms()
     return config
 
 # To change lattice parameters or atomic symbols just modify this function.
 def get_named_lattice(name):
+    if name.endswith('.cif'):
+        return make_lattice_from_cif(name)
     name = name.lower()
     if name == "cu": # Cu (fcc, A1)
         lattice = make_fcc_lattice(symbol="Cu", a=3.615)

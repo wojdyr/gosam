@@ -34,9 +34,11 @@ Usage:
    * vacuum:length - vacuum in z direction. Makes 2D slab with z dimension
              increased by the length.
    * shift:dx,dy,dz - shift nodes in unit cell.
-   * lattice:name - e.g. SiC. For heterophase boundaries, two names should be
-                    separated by comma without spaces (e.g. lattice:Cu,Fe).
-                    In this case one of the grains may not fit well into PBC.
+   * lattice:name - (default: SiC). For heterophase boundaries give two
+                    names separated by comma (e.g. lattice:Cu,Fe, but in
+                    such case one of the grains may not fit well into PBC).
+                    Since 2018 you may use CIF files instead of the name
+                    (i.e. lattice:my.cif).
    * edge:z1,z2 - Removes atoms that have y in lower half of the box and 
              z1 < z < z2. There is a chance that this will become an edge 
              dislocation after squeezing or running high temperature MD.
@@ -59,7 +61,8 @@ import numpy
 from numpy import dot, identity, inner, zeros
 from numpy import linalg
 from monocryst import RotatedMonocrystal, OrthorhombicPbcModel, \
-                     get_command_line, get_named_lattice
+                      get_named_lattice
+from utils import get_command_line
 import csl
 from rotmat import rodrigues, print_matrix, round_to_multiplicity
 
